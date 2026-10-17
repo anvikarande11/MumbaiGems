@@ -52,3 +52,4 @@ export function getNeighborhoodId(lat, lng) {
   const hit = NEIGHBORHOOD_LIST.find((h) => inRing(lng, lat, h.ring));
   return hit ? hit.id : null;
 }
+export default NEIGHBORHOODS;

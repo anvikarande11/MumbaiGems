@@ -14,7 +14,8 @@
  *   - Land:      extruded warm-paper polygons with a slate coastline
  *   - Roads:     thin slate vector ribbons with semantic zoom (widths and minor streets adapt)
  *   - Pins:      24px category nodes on the exact GPS point; the name badge only
- *                appears on hover, focus or selection
+ *                appears on hover, focus or selection. Zoomed out (altitude > DOT_ALT)
+ *                they collapse into glowing micro-dots, and scale back up as you zoom in.
  *
  * Everything is vector, so it stays crisp at any zoom level.
  *
@@ -26,13 +27,19 @@
  *   roadPaths      [{ name, kind, points: [[lng, lat], ...] }]
  *   streets        GeoJSON FeatureCollection of LineStrings (e.g. an OSM export).
  *                  properties.kind or properties.highway sets the style.
- *   neighborhoods  GeoJSON FeatureCollection of Polygons (e.g. BMC wards). Drawn as
- *                  boundaries and labelled with properties.name.
+ *   neighborhoods  GeoJSON FeatureCollection (or plain array of features) of Polygon /
+ *                  MultiPolygon zones, e.g. your neighborhoods.js. Each zone gets a soft tint,
+ *                  a border, an atlas-style name (properties.name) and a hover glow.
+ *                  Optional per-zone overrides: properties.minAlt / properties.maxAlt.
  *   placeLabels    [{ name, lat, lng, major? }]   waterLabels  [{ name, lat, lng, maxAlt? }]
  *   onLandmarkClick(landmark)
  *   active         start the opening glide once true (lets an intro screen sit on top)
  *   blind          hide names and ignore selection (used by the Spin & Find game)
  *   visitedIds     Set of landmark ids to mark as discovered
+ *   overlayActive  true while a modal / overlay is open: pins and labels are hidden and made
+ *                  non-interactive so they can never show through the dialog
+ *   autoDetectOverlays  also hide pins automatically while any [aria-modal="true"],
+ *                  [role="dialog"] or [data-mg-overlay] element exists outside this component
  *
  * Ref methods: focus(id) selects a pin and flies to it, recenter() resets the view.
  */
@@ -75,6 +82,32 @@ const ATMOSPHERE = '#cfe5f5';
 const LAND_ALT = 0.003;
 const ROAD_ALT = LAND_ALT + 0.0008;
 const PIN_ALT = LAND_ALT + 0.002;
+
+// Phase 1: adaptive pins and altitude-based typography.
+// Above DOT_ALT pins are ~7px glowing micro-dots; below FULL_ALT they are full 24px icons;
+// in between the scale eases smoothly.
+const DOT_ALT = 1.0;
+const FULL_ALT = 0.35;
+const DOT_SCALE = 0.3; // 24px * 0.3 = ~7px
+// Minor place labels are hidden above this altitude and fade in over MINOR_LABEL_FADE below it.
+const MINOR_LABEL_MAX_ALT = 0.55;
+const MINOR_LABEL_FADE = 0.12;
+
+// Phase 2: zone shading, atlas typography and hover glow.
+const ZONE_ALT = LAND_ALT + 0.0005; // zone tint sits just above the land cap, below the roads
+const ZONE_FILL_ALPHA = 0.1;
+const ZONE_FILL_HOVER_ALPHA = 0.34;
+const ZONE_BORDER = 'rgba(100,116,139,0.38)';
+const ZONE_HUES = ['#5b9bd5', '#d9779a', '#5fb98a', '#e0a23c', '#9a82d6', '#4fb3b0', '#e58a63', '#9bb84a'];
+// Region-name zoom bands by zone area (km2): [minArea, minAlt, maxAlt, fontPx]. Big zones are
+// named from far away, small ones only up close. Labels fade over REGION_FADE_* of altitude.
+const REGION_TIERS = [
+  [60, 0.28, 1.5, 14],
+  [15, 0.14, 0.85, 12],
+  [0, 0.05, 0.5, 10.5],
+];
+const REGION_FADE_FAR = 0.15;
+const REGION_FADE_NEAR = 0.08;
 
 // Road styles. `km` is the real-world ribbon width at the reference zoom.
 const ROAD_STYLES = {
@@ -469,7 +502,7 @@ export const LANDMARKS = [
 /* -------------------------------------------------------------------------- */
 
 export const DEFAULT_PLACES = [
-  { name: 'Colaba', lat: 18.9067, lng: 72.8147 },
+  { name: 'Colaba', lat: 18.9067, lng: 72.8147, major: true },
   { name: 'Fort', lat: 18.9338, lng: 72.8355 },
   { name: 'Malabar Hill', lat: 18.9548, lng: 72.796 },
   { name: 'Byculla', lat: 18.9792, lng: 72.833 },
@@ -544,6 +577,127 @@ function neighborhoodParts(fc) {
 }
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+const smoothstep = (t) => t * t * (3 - 2 * t);
+
+// Camera altitude -> pin presentation. `scale` drives the node size, `dot` (1 = pure
+// micro-dot, 0 = full icon) cross-fades the icon into a solid glowing dot.
+function pinMetrics(alt) {
+  const near = smoothstep(clamp((DOT_ALT - alt) / (DOT_ALT - FULL_ALT), 0, 1));
+  return { scale: DOT_SCALE + (1 - DOT_SCALE) * near, dot: 1 - near, isDot: alt > DOT_ALT };
+}
+
+/* ---- Zones (neighborhood polygons) ---------------------------------------- */
+
+const hexToRgba = (hex, a) => {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+};
+
+const hashStr = (s) => {
+  let h = 0;
+  for (let i = 0; i < s.length; i += 1) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h;
+};
+
+/** Accepts a FeatureCollection, a bare array of features, or nothing. */
+const toFeatures = (n) => (Array.isArray(n) ? n : Array.isArray(n?.features) ? n.features : []);
+
+const zoneName = (p = {}) => p.name ?? p.Name ?? p.NAME ?? p.zone ?? p.ward ?? p.label ?? '';
+
+const pointInRing = (x, y, pts) => {
+  let inside = false;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i, i += 1) {
+    const [xi, yi] = pts[i];
+    const [xj, yj] = pts[j];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+};
+
+/** Area (km2) and a label point that is guaranteed to sit inside the ring. */
+function ringStats(ring) {
+  const pts = ring.map(([lng, lat]) => toPlane(lng, lat));
+  let a = 0;
+  let cx = 0;
+  let cy = 0;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i, i += 1) {
+    const [x0, y0] = pts[j];
+    const [x1, y1] = pts[i];
+    const k = x0 * y1 - x1 * y0;
+    a += k;
+    cx += (x0 + x1) * k;
+    cy += (y0 + y1) * k;
+  }
+  a /= 2;
+  let c = Math.abs(a) > 1e-9 ? [cx / (6 * a), cy / (6 * a)] : pts[0];
+  if (!pointInRing(c[0], c[1], pts)) {
+    // Concave zone: take the interior grid point nearest the centroid.
+    const xs = pts.map((q) => q[0]);
+    const ys = pts.map((q) => q[1]);
+    const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+    let best = null;
+    for (let i = 1; i < 24; i += 1) {
+      for (let j = 1; j < 24; j += 1) {
+        const x = x0 + ((x1 - x0) * i) / 24;
+        const y = y0 + ((y1 - y0) * j) / 24;
+        if (!pointInRing(x, y, pts)) continue;
+        const dist = Math.hypot(x - c[0], y - c[1]);
+        if (!best || dist < best.dist) best = { x, y, dist };
+      }
+    }
+    if (best) c = [best.x, best.y];
+  }
+  return { area: Math.abs(a), lng: c[0] / KM_PER_DEG_LNG + MUMBAI_CENTER.lng, lat: c[1] / KM_PER_DEG_LAT + MUMBAI_CENTER.lat };
+}
+
+/**
+ * Real-coordinate zone features (tagged for hover and styling) plus one atlas label per
+ * named zone. Features are projected later, by virtualizePolygons, like all other geometry.
+ */
+function buildZones(rawFeatures) {
+  const features = [];
+  const atlas = [];
+  rawFeatures.forEach((f, i) => {
+    const type = f?.geometry?.type;
+    if (type !== 'Polygon' && type !== 'MultiPolygon') return;
+    const polys = type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates;
+    const valid = polys.length > 0 && polys.every((poly) => Array.isArray(poly) && poly.every((r) => Array.isArray(r) && r.length >= 3));
+    if (!valid) return;
+
+    const closed = polys.map((poly) => poly.map(closeRing));
+    const name = String(zoneName(f.properties) || '').trim();
+    const zid = `zone-${i}`;
+    const hue = ZONE_HUES[hashStr(name || zid) % ZONE_HUES.length];
+    features.push({
+      type: 'Feature',
+      properties: { ...f.properties, __zone: true, __zid: zid, __hue: hue },
+      geometry: type === 'Polygon' ? { type, coordinates: closed[0] } : { type, coordinates: closed },
+    });
+
+    if (!name) return;
+    const stats = closed.map((poly) => ringStats(poly[0]));
+    const area = stats.reduce((s, q) => s + q.area, 0);
+    const anchor = stats.reduce((m, q) => (q.area > m.area ? q : m), stats[0]);
+    const [, tMinAlt, tMaxAlt, fs] = REGION_TIERS.find(([minArea]) => area >= minArea);
+    const num = (v, d) => (Number.isFinite(v) ? v : d);
+    atlas.push({
+      name,
+      zid,
+      hue,
+      area,
+      fs,
+      lat: anchor.lat,
+      lng: anchor.lng,
+      minAlt: num(f.properties?.minAlt, tMinAlt),
+      maxAlt: num(f.properties?.maxAlt, tMaxAlt),
+    });
+  });
+  return { features, atlas };
+}
+
+// Polygon layer accessors that do not depend on hover state.
+const polySide = (d) => (d.properties?.__zone ? 'rgba(0,0,0,0)' : sideColor());
+const polyAlt = (d) => (d.properties?.__zone ? ZONE_ALT : LAND_ALT);
 const pointLat = (p) => p.lat;
 const pointLng = (p) => p.lng;
 const pointAlt = (p) => p.alt;
@@ -620,7 +774,10 @@ const MARKER_CSS = `
   border:1px solid color-mix(in srgb,var(--c) 55%,#fff);
   box-shadow:0 0 0 3px color-mix(in srgb,var(--c) 12%,transparent),0 3px 10px color-mix(in srgb,var(--c) 28%,transparent);
   transform:scale(var(--s,1));transition:transform .18s cubic-bezier(.3,.7,.3,1),box-shadow .18s ease}
-.mg-ring{border:1.5px solid var(--c);opacity:0;transform:scale(var(--s,1))}
+.mg-ring{border:1.5px solid var(--c);opacity:0;transform:scale(var(--s,1));pointer-events:none}
+.mg-body>svg{opacity:calc(1 - var(--dot,0)*1.6);transition:opacity .18s ease}
+.mg-body::before{content:'';position:absolute;inset:0;z-index:-1;border-radius:inherit;background:var(--c);
+  box-shadow:0 0 16px 5px color-mix(in srgb,var(--c) 55%,transparent);opacity:var(--dot,0);transition:opacity .18s ease}
 .mg-node:hover .mg-body,.mg-node:focus-visible .mg-body,.mg-node.is-active .mg-body{
   transform:scale(calc(var(--s,1)*1.25));
   box-shadow:0 0 0 4px color-mix(in srgb,var(--c) 20%,transparent),0 4px 14px color-mix(in srgb,var(--c) 42%,transparent)}
@@ -636,9 +793,31 @@ const MARKER_CSS = `
 .mg-tip strong{overflow:hidden;text-overflow:ellipsis;font:600 12px/1.25 ui-sans-serif,system-ui,sans-serif;color:#1e293b}
 .mg-tip span{overflow:hidden;text-overflow:ellipsis;font:500 10px/1.3 ui-sans-serif,system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#64748b}
 .mg-blind .mg-tip{display:none}
+.mg-node.is-dot{pointer-events:none}
+.mg-node.is-dot .mg-body{pointer-events:auto}
+.mg-node.is-dot .mg-ring,.mg-node.is-dot .mg-tip{display:none}
+.mg-node.is-dot:hover .mg-body,.mg-node.is-dot:focus-visible .mg-body{transform:scale(calc(var(--s,1)*1.9))}
 .mg-node.is-visited .mg-body{background:color-mix(in srgb,var(--c) 14%,#fff)}
-.mg-node.is-visited::after{content:'';position:absolute;right:-2px;top:-2px;width:8px;height:8px;border-radius:9999px;background:var(--c);border:1.5px solid #fff}
-@media (prefers-reduced-motion:reduce){.mg-ring{animation:none!important}.mg-body,.mg-tip{transition:none}}
+.mg-node.is-visited::after{content:'';position:absolute;right:-2px;top:-2px;width:8px;height:8px;border-radius:9999px;background:var(--c);border:1.5px solid #fff;
+  transform:translate(calc((1 - var(--s,1))*-10px),calc((1 - var(--s,1))*10px)) scale(var(--s,1));transition:transform .18s ease}
+.mg-node.is-dot.is-visited::after{display:none}
+.mg-region{position:absolute;left:0;top:0;transform:translate(-50%,-50%);padding-left:.36em;white-space:nowrap;pointer-events:none;user-select:none;opacity:0;
+  transition:opacity .5s ease,color .25s ease,text-shadow .25s ease;
+  font:500 var(--fs,12px)/1 ui-serif,Georgia,'Times New Roman',serif;letter-spacing:.36em;text-transform:uppercase;
+  color:color-mix(in srgb,var(--hue,#64748b) 45%,#475569);
+  text-shadow:0 0 4px #fafaf7,0 0 4px #fafaf7,0 0 10px #fafaf7}
+.mg-region[data-hot="1"]{color:color-mix(in srgb,var(--hue,#64748b) 70%,#1e293b);text-shadow:0 0 4px #fafaf7,0 0 8px #fafaf7,0 0 14px var(--hue,#64748b)}
+.mg-glow{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;opacity:0;transition:opacity .22s ease;
+  filter:drop-shadow(0 0 5px var(--glow,#38bdf8))}
+.mg-glow.is-on{opacity:1}
+.mg-glow path{fill:none;stroke-linejoin:round;stroke-linecap:round}
+.mg-glow-halo{stroke:var(--glow,#38bdf8);stroke-width:7;opacity:.18}
+.mg-glow-core{stroke:var(--glow,#38bdf8);stroke-width:1.8}
+.mg-glow-spark{stroke:#fff;stroke-width:2.2;stroke-dasharray:2 26;opacity:.95;animation:mg-march 1.4s linear infinite}
+@keyframes mg-march{to{stroke-dashoffset:-28}}
+.mg-suspended [data-mg-el],.mg-suspended [data-mg-el] *{opacity:0!important;pointer-events:none!important}
+.mg-suspended .mg-glow{opacity:0!important}
+@media (prefers-reduced-motion:reduce){.mg-ring{animation:none!important}.mg-glow-spark{animation:none}.mg-region,.mg-glow{transition:none}.mg-body,.mg-tip,.mg-body>svg,.mg-body::before,.mg-node.is-visited::after{transition:none}}
 `;
 
 /**
@@ -650,6 +829,7 @@ function buildElement(d, { onActivate }) {
   const root = document.createElement('div');
   root.className = 'relative h-0 w-0';
   root.dataset.vis = '1';
+  root.dataset.mgEl = '1'; // lets .mg-suspended hide every pin and label while a modal is open
 
   if (d.kind === 'pin') {
     const kind = markerKind(d.category);
@@ -684,16 +864,29 @@ function buildElement(d, { onActivate }) {
   }
 
   root.style.pointerEvents = 'none';
+
+  if (d.kind === 'region') {
+    const region = document.createElement('div');
+    region.className = 'mg-region';
+    region.textContent = d.name;
+    region.dataset.hot = '0';
+    region.style.setProperty('--hue', d.hue);
+    region.style.setProperty('--fs', `${d.fs}px`);
+    root.appendChild(region);
+    return { root, label: region };
+  }
+
   const label = document.createElement('div');
   label.textContent = d.name;
   const water = d.kind === 'water';
   label.style.cssText = [
     'position:absolute;left:0;top:0;transform:translate(-50%,-50%)',
-    'white-space:nowrap;opacity:0;transition:opacity .2s;pointer-events:none;user-select:none',
+    'white-space:nowrap;opacity:0;transition:opacity .4s ease;pointer-events:none;user-select:none',
     water
       ? 'font:italic 500 12px ui-sans-serif,system-ui,sans-serif;letter-spacing:.18em;color:#6b8fb0'
       : `font:${d.major ? 700 : 600} 10px ui-sans-serif,system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:${d.major ? '#475569' : '#64748b'}`,
-    'text-shadow:0 0 3px #fafaf7,0 0 3px #fafaf7,0 0 6px #fafaf7',
+    // Major hubs: soft halo (0 0 4px #fafaf7, layered twice for density). Minor and water keep the tighter halo.
+    d.major ? 'text-shadow:0 0 4px #fafaf7,0 0 4px #fafaf7' : 'text-shadow:0 0 3px #fafaf7,0 0 3px #fafaf7,0 0 6px #fafaf7',
   ].join(';');
   root.appendChild(label);
   return { root, label };
@@ -716,6 +909,8 @@ const MumbaiGlobe = forwardRef(function MumbaiGlobe({
   active = true,
   blind = false,
   visitedIds = null,
+  overlayActive = false,
+  autoDetectOverlays = false,
 }, ref) {
   const globeRef = useRef(null);
   const containerRef = useRef(null);
@@ -725,11 +920,17 @@ const MumbaiGlobe = forwardRef(function MumbaiGlobe({
   const altRef = useRef(INTRO_ALTITUDE);
   const rafRef = useRef(0);
   const hoodRef = useRef(false);
+  const glowRef = useRef(null);
+  const hoverRef = useRef(null); // hovered zone id, readable from the rAF pass
+  const hoverTimer = useRef(0);
+  const zoneRingsRef = useRef(new Map());
 
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [ready, setReady] = useState(false);
   const [lod, setLod] = useState(lodFor(INTRO_ALTITUDE));
   const [selected, setSelected] = useState(null);
+  const [hoverZone, setHoverZone] = useState(null);
+  const [autoOverlay, setAutoOverlay] = useState(false);
 
   useEffect(() => {
     clickRef.current = onLandmarkClick;
@@ -739,6 +940,31 @@ const MumbaiGlobe = forwardRef(function MumbaiGlobe({
     blindRef.current = blind;
     if (blind) setSelected(null);
   }, [blind]);
+
+  // Optional: hide pins while any dialog outside this component is open.
+  useEffect(() => {
+    if (!autoDetectOverlays || typeof document === 'undefined') return undefined;
+    const selector = '[aria-modal="true"],[role="dialog"],[role="alertdialog"],[data-mg-overlay]';
+    let raf = 0;
+    const check = () => {
+      const root = containerRef.current;
+      const found = [...document.querySelectorAll(selector)].some((el) => !root?.contains(el));
+      setAutoOverlay((prev) => (prev === found ? prev : found));
+    };
+    check();
+    const mo = new MutationObserver(() => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        check();
+      });
+    });
+    mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-modal', 'role', 'data-mg-overlay'] });
+    return () => {
+      mo.disconnect();
+      cancelAnimationFrame(raf);
+    };
+  }, [autoDetectOverlays]);
 
   // Keep the canvas sized to its container.
   useEffect(() => {
@@ -757,8 +983,21 @@ const MumbaiGlobe = forwardRef(function MumbaiGlobe({
 
   /* ---- Data, projected once ------------------------------------------------ */
 
-  const hood = useMemo(() => neighborhoodParts(neighborhoods), [neighborhoods]);
+  const hoodFeatures = useMemo(() => toFeatures(neighborhoods), [neighborhoods]);
+  const hood = useMemo(() => neighborhoodParts({ features: hoodFeatures }), [hoodFeatures]);
+  const zones = useMemo(() => buildZones(hoodFeatures), [hoodFeatures]);
   const vLand = useMemo(() => virtualizePolygons(landFeatures), [landFeatures]);
+  // Zones go through the same stereographic virtualisation as the land.
+  const vZones = useMemo(() => virtualizePolygons(zones.features), [zones]);
+  const polyData = useMemo(() => [...vLand, ...vZones], [vLand, vZones]);
+  zoneRingsRef.current = useMemo(() => {
+    const m = new Map();
+    vZones.forEach((f) => {
+      const polys = f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates;
+      m.set(f.properties.__zid, polys.flat()); // list of rings, [vlng, vlat] points
+    });
+    return m;
+  }, [vZones]);
   const vRoads = useMemo(
     () => virtualizeRoads([...roadPaths, ...geoJsonToRoadPaths(streets), ...hood.rings]),
     [roadPaths, streets, hood],
@@ -789,11 +1028,15 @@ const MumbaiGlobe = forwardRef(function MumbaiGlobe({
       });
     return [
       ...pins,
-      ...make(placeLabels, 'place', (l) => (l.major ? 1 : 2), (l) => (l.major ? 1.4 : 0.7)),
-      ...make(hood.labels, 'place', () => 2, () => 0.5),
+      ...make(placeLabels, 'place', (l) => (l.major ? 1 : 2), (l) => (l.major ? 1.4 : MINOR_LABEL_MAX_ALT)),
+      // Atlas region names (replace the old centroid labels)
+      ...zones.atlas.map((z) => {
+        const v = projectToGlobe(z.lng, z.lat);
+        return { ...z, id: `region-${z.zid}`, kind: 'region', vlat: v.lat, vlng: v.lng, priority: 0 };
+      }),
       ...make(waterLabels, 'water', () => 3, (l) => l.maxAlt ?? 0.9),
     ];
-  }, [pins, placeLabels, hood, waterLabels]);
+  }, [pins, placeLabels, zones, waterLabels]);
 
   const paths = useMemo(() => vRoads.filter((r) => layerVisible(r.kind, lod)), [vRoads, lod]);
   const pathStroke = useCallback((d) => ROAD_STYLES[d.kind].km * DEG_PER_KM * strokeScale(lod), [lod]);
@@ -807,29 +1050,83 @@ const MumbaiGlobe = forwardRef(function MumbaiGlobe({
     const items = [...registry.current.values()].filter((it) => it.root.isConnected);
     const overlap = (a, b) => !(a.r < b.l || a.l > b.r || a.b < b.t || a.t > b.b);
 
-    // Nodes shrink a little when zoomed out so the global view stays quiet.
-    const nodeScale = clamp(1 - (alt - 0.15) * 0.55, 0.62, 1).toFixed(3);
+    // Adaptive pins: micro-dots when zoomed out, full icons up close, eased in between.
+    const { scale, dot, isDot } = pinMetrics(alt);
+    const scaleStr = scale.toFixed(3);
+    const dotStr = dot.toFixed(3);
+    // Micro-dots read as a point cloud, so they don't need to block labels; bigger nodes do.
+    const pinsBlockLabels = scale >= 0.5;
 
     const placed = [];
-    // Every visible node is an obstacle for place and water labels.
     items.forEach((it) => {
       if (it.d.kind !== 'pin') return;
-      it.root.style.setProperty('--s', nodeScale);
+      // The selected pin always stays a full-size icon so it never gets lost in the dots.
+      const active = it.target.classList.contains('is-active');
+      const s = active ? '1.000' : scaleStr;
+      const dt = active ? '0.000' : dotStr;
+      if (it.lastScale !== s) {
+        it.root.style.setProperty('--s', s);
+        it.lastScale = s;
+      }
+      if (it.lastDot !== dt) {
+        it.root.style.setProperty('--dot', dt);
+        it.lastDot = dt;
+      }
+      it.target.classList.toggle('is-dot', isDot && !active);
+
       if (it.root.dataset.vis === '0') return;
+      if (!active && !pinsBlockLabels) return;
+      // Visible nodes are obstacles for place and water labels.
       const { x, y } = globe.getScreenCoords(it.d.vlat, it.d.vlng, PIN_ALT);
-      placed.push({ owner: it.d.id, l: x - 14, r: x + 14, t: y - 14, b: y + 14 });
+      const half = active ? 14 : 14 * scale;
+      placed.push({ owner: it.d.id, l: x - half, r: x + half, t: y - half, b: y + half });
     });
 
+    // Atlas region names: big zones first, they only avoid each other (they sit under pins
+    // and place labels like printed atlas type) and fade in and out across their zoom band.
+    const regionBoxes = [];
+    items
+      .filter((it) => it.d.kind === 'region')
+      .sort((a, b) => b.d.area - a.d.area)
+      .forEach((it) => {
+        const { d, root, label } = it;
+        const hide = () => {
+          label.style.opacity = '0';
+        };
+        if (root.dataset.vis === '0' || alt > d.maxAlt || alt < d.minAlt) return hide();
+        const fade = Math.min(clamp((d.maxAlt - alt) / REGION_FADE_FAR, 0, 1), clamp((alt - d.minAlt) / REGION_FADE_NEAR, 0, 1));
+        if (fade < 0.05) return hide();
+
+        const { x, y } = globe.getScreenCoords(d.vlat, d.vlng, PIN_ALT);
+        if (!it.w) {
+          const r = label.getBoundingClientRect();
+          it.w = r.width;
+          it.h = r.height;
+        }
+        const w = it.w || d.name.length * d.fs * 1.1 + 16;
+        const h = it.h || d.fs + 4;
+        const box = { l: x - w / 2 - 6, r: x + w / 2 + 6, t: y - h / 2 - 4, b: y + h / 2 + 4 };
+        if (regionBoxes.some((q) => overlap(box, q))) return hide();
+        regionBoxes.push(box);
+        label.style.opacity = (fade * 0.88).toFixed(2);
+        return undefined;
+      });
+
     const order = items
-      .filter((it) => it.d.kind !== 'pin')
+      .filter((it) => it.d.kind !== 'pin' && it.d.kind !== 'region')
       .sort((a, b) => a.d.priority - b.d.priority);
 
     order.forEach((it) => {
       const { d, root, label } = it;
-      const setOn = (on) => {
-        label.style.opacity = on ? '1' : '0';
+      const setOn = (on, opacity = 1) => {
+        label.style.opacity = on ? opacity.toFixed(2) : '0';
       };
       if (root.dataset.vis === '0' || alt > d.maxAlt) return setOn(false);
+
+      // Minor labels ease in over MINOR_LABEL_FADE of altitude below their threshold.
+      // Major hubs and water labels switch on at full strength.
+      const fade = d.kind === 'place' && !d.major ? clamp((d.maxAlt - alt) / MINOR_LABEL_FADE, 0, 1) : 1;
+      if (fade < 0.05) return setOn(false);
 
       const { x, y } = globe.getScreenCoords(d.vlat, d.vlng, PIN_ALT);
       if (!it.w) {
@@ -843,8 +1140,34 @@ const MumbaiGlobe = forwardRef(function MumbaiGlobe({
 
       if (placed.some((p) => p.owner !== d.id && overlap(box, p))) return setOn(false);
       placed.push(box);
-      return setOn(true);
+      return setOn(true, fade);
     });
+  }, []);
+
+  // Hover glow: the hovered zone's outline is projected to screen space and drawn as an SVG
+  // (soft halo + bright core + a travelling spark), re-projected on every camera change.
+  const updateGlow = useCallback(() => {
+    const svg = glowRef.current;
+    const globe = globeRef.current;
+    if (!svg) return;
+    const rings = hoverRef.current && globe ? zoneRingsRef.current.get(hoverRef.current) : null;
+    if (!rings) {
+      svg.classList.remove('is-on');
+      return;
+    }
+    let d = '';
+    rings.forEach((ring) => {
+      let started = false;
+      ring.forEach(([lng, lat]) => {
+        const { x, y } = globe.getScreenCoords(lat, lng, ZONE_ALT);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+        d += `${started ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`;
+        started = true;
+      });
+      if (started) d += 'Z';
+    });
+    svg.querySelectorAll('path').forEach((el) => el.setAttribute('d', d));
+    svg.classList.add('is-on');
   }, []);
 
   const scheduleDeclutter = useCallback(() => {
@@ -852,10 +1175,63 @@ const MumbaiGlobe = forwardRef(function MumbaiGlobe({
     rafRef.current = requestAnimationFrame(() => {
       rafRef.current = 0;
       declutter();
+      updateGlow();
     });
-  }, [declutter]);
+  }, [declutter, updateGlow]);
 
-  useEffect(() => () => cancelAnimationFrame(rafRef.current), []);
+  useEffect(
+    () => () => {
+      cancelAnimationFrame(rafRef.current);
+      clearTimeout(hoverTimer.current);
+    },
+    [],
+  );
+
+  // Zone hover. Clearing is debounced so crossing a road or a pin does not flicker the glow.
+  const handlePolygonHover = useCallback(
+    (poly) => {
+      const z = poly?.properties;
+      clearTimeout(hoverTimer.current);
+      if (z?.__zone) {
+        hoverRef.current = z.__zid;
+        glowRef.current?.style.setProperty('--glow', z.__hue);
+        setHoverZone(z.__zid);
+        scheduleDeclutter();
+      } else {
+        hoverTimer.current = setTimeout(() => {
+          hoverRef.current = null;
+          setHoverZone(null);
+          scheduleDeclutter();
+        }, 120);
+      }
+    },
+    [scheduleDeclutter],
+  );
+
+  const polyCap = useCallback(
+    (d) => {
+      const z = d.properties;
+      if (!z?.__zone) return capColor();
+      return hexToRgba(z.__hue, z.__zid === hoverZone ? ZONE_FILL_HOVER_ALPHA : ZONE_FILL_ALPHA);
+    },
+    [hoverZone],
+  );
+
+  const polyStroke = useCallback(
+    (d) => {
+      const z = d.properties;
+      if (!z?.__zone) return strokeColor();
+      return z.__zid === hoverZone ? z.__hue : ZONE_BORDER;
+    },
+    [hoverZone],
+  );
+
+  // Light up the hovered zone's atlas name too.
+  useEffect(() => {
+    registry.current.forEach((it) => {
+      if (it.d.kind === 'region') it.label.dataset.hot = it.d.zid === hoverZone ? '1' : '0';
+    });
+  }, [hoverZone, elements]);
 
   // Elements are (re)built by the library after `elements` changes.
   useEffect(() => {
@@ -1015,7 +1391,7 @@ const MumbaiGlobe = forwardRef(function MumbaiGlobe({
   const selAccent = selected ? selected.color || selKind.color : null;
 
   return (
-    <div ref={containerRef} className={`relative h-full min-h-[480px] w-full overflow-hidden bg-[#e8f4f8] ${blind ? 'mg-blind' : ''} ${className}`}>
+    <div ref={containerRef} className={`relative isolate h-full min-h-[480px] w-full overflow-hidden bg-[#e8f4f8] ${blind ? 'mg-blind' : ''} ${overlayActive || autoOverlay ? 'mg-suspended' : ''} ${className}`}>
       <style>{MARKER_CSS}</style>
       {size.width > 0 && size.height > 0 && (
         <Globe
@@ -1031,13 +1407,14 @@ const MumbaiGlobe = forwardRef(function MumbaiGlobe({
           showGraticules={false}
           onGlobeReady={handleGlobeReady}
           onZoom={handleZoom}
-          /* Land (projected, densified) */
-          polygonsData={vLand}
+          /* Land + neighborhood zones (projected, densified) */
+          polygonsData={polyData}
           polygonGeoJsonGeometry="geometry"
-          polygonCapColor={capColor}
-          polygonSideColor={sideColor}
-          polygonStrokeColor={strokeColor}
-          polygonAltitude={LAND_ALT}
+          polygonCapColor={polyCap}
+          polygonSideColor={polySide}
+          polygonStrokeColor={polyStroke}
+          polygonAltitude={polyAlt}
+          onPolygonHover={handlePolygonHover}
           polygonCapCurvatureResolution={3}
           polygonsTransitionDuration={0}
           /* Roads, minor streets and boundaries */
@@ -1058,6 +1435,12 @@ const MumbaiGlobe = forwardRef(function MumbaiGlobe({
           htmlElementVisibilityModifier={visibility}
         />
       )}
+
+      <svg ref={glowRef} className="mg-glow" aria-hidden="true">
+        <path className="mg-glow-halo" />
+        <path className="mg-glow-core" />
+        <path className="mg-glow-spark" />
+      </svg>
 
       {!ready && (
         <div className="absolute inset-0 flex items-center justify-center bg-[#e8f4f8] text-xs tracking-[0.2em] text-slate-400">

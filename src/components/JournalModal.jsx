@@ -2,13 +2,23 @@ import { useState, useEffect } from 'react';
 import { X, BookOpen, Sparkles, MapPin, CheckCircle2, Award } from 'lucide-react';
 
 export default function JournalModal({ isOpen, onClose, landmarks = [], visitedIds = new Set(), store }) {
-  // Fallback safely so it never throws undefined errors
   const activeVisitedIds = visitedIds || store?.visitedSet || new Set();
   
   const [notes, setNotes] = useState(() => {
     return localStorage.getItem('mumbai_explorer_journal_notes') || '';
   });
   const [activeTab, setActiveTab] = useState('notes');
+
+  // Close on ESC keypress
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   useEffect(() => {
     localStorage.setItem('mumbai_explorer_journal_notes', notes);
@@ -20,7 +30,12 @@ export default function JournalModal({ isOpen, onClose, landmarks = [], visitedI
   const discoveredCount = landmarks.filter(l => activeVisitedIds.has(l.id)).length;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-md p-4 animate-fadeIn">
+    <div 
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-md p-4 animate-fadeIn"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div className="relative w-full max-w-3xl overflow-hidden rounded-3xl border border-slate-300/60 bg-[#fdfbf7] shadow-2xl flex flex-col max-h-[85vh]">
         
         {/* Header */}
@@ -38,6 +53,7 @@ export default function JournalModal({ isOpen, onClose, landmarks = [], visitedI
             type="button"
             onClick={onClose}
             className="rounded-full p-2 text-slate-400 hover:bg-slate-200/60 hover:text-slate-700 transition"
+            aria-label="Close Journal"
           >
             <X className="h-5 w-5" />
           </button>
