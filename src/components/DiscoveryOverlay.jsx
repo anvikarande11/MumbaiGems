@@ -3,11 +3,11 @@ import { ROUNDS, ROUND_SECONDS, rankFor } from '../hooks/useDiscovery';
 import JournalModal from './JournalModal';
 
 const glass =
-  'pointer-events-auto rounded-2xl border border-slate-300/50 bg-white/75 shadow-[0_8px_28px_rgba(51,65,85,0.14)] backdrop-blur-xl';
+  'pointer-events-auto rounded-2xl border border-slate-700/70 bg-slate-950/75 shadow-[0_12px_40px_rgba(0,0,0,0.35)] backdrop-blur-xl';
 const primary =
-  'rounded-full bg-slate-900 px-4 py-2 text-xs font-medium text-white transition hover:bg-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500';
+  'rounded-full bg-cyan-300 px-4 py-2 text-xs font-semibold text-slate-950 transition hover:bg-cyan-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300';
 const ghost =
-  'rounded-full border border-slate-300/70 bg-white/80 px-4 py-2 text-xs font-medium text-slate-600 transition hover:border-slate-500 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400';
+  'rounded-full border border-slate-600/80 bg-slate-900/70 px-4 py-2 text-xs font-medium text-slate-300 transition hover:border-cyan-300/70 hover:text-cyan-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300';
 
 const CSS = `
 @keyframes mg-miss{0%{opacity:0;transform:translateY(4px)}15%,70%{opacity:1;transform:none}100%{opacity:0}}
@@ -43,7 +43,7 @@ export default function DiscoveryOverlay({ discovery, landmarks = [], visitedIds
         <button
   type="button"
   onClick={() => setIsJournalOpen(true)}
-  className="pointer-events-auto rounded-full bg-white/90 px-4 py-2 text-xs font-semibold text-slate-800 shadow-md backdrop-blur hover:bg-white transition flex items-center gap-1.5"
+  className="pointer-events-auto rounded-full bg-slate-950/85 px-4 py-2 text-xs font-semibold text-slate-800 shadow-md backdrop-blur hover:bg-white transition flex items-center gap-1.5"
 >
   <span>📖</span> Travel Journal
 </button>
@@ -55,14 +55,14 @@ export default function DiscoveryOverlay({ discovery, landmarks = [], visitedIds
           type="button"
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
-          className={`${glass} px-4 py-2 text-xs font-medium text-slate-700 transition hover:text-slate-900`}
+          className={`${glass} px-4 py-2 text-xs font-medium text-slate-700 transition hover:text-slate-100`}
         >
           Passport · {unlockedCount}/{hubs.length} hubs
         </button>
         {open && (
           <div className={`${glass} w-64 p-4`}>
             <div className="text-[10px] font-medium uppercase tracking-[0.14em] text-slate-500">Explorer Badge</div>
-            <div className="mt-0.5 text-sm font-semibold text-slate-900">{tier}</div>
+            <div className="mt-0.5 text-sm font-semibold text-slate-100">{tier}</div>
             <div className="text-xs text-slate-500">
               {unlockedCount}/{hubs.length} hubs unlocked
             </div>
@@ -70,7 +70,7 @@ export default function DiscoveryOverlay({ discovery, landmarks = [], visitedIds
               {hubs.map((h) => (
                 <li key={h.id}>
                   <div className="flex items-center justify-between text-xs">
-                    <span className={h.unlocked ? 'font-medium text-slate-900' : 'text-slate-500'}>
+                    <span className={h.unlocked ? 'font-medium text-slate-100' : 'text-slate-500'}>
                       {h.unlocked ? '✓ ' : ''}
                       {h.name}
                     </span>
@@ -108,7 +108,7 @@ export default function DiscoveryOverlay({ discovery, landmarks = [], visitedIds
               </button>
             </span>
           </div>
-          <p className="mt-2 text-[15px] font-semibold leading-snug text-slate-900">{clue}</p>
+          <p className="mt-2 text-[15px] font-semibold leading-snug text-slate-100">{clue}</p>
           <div className="mt-1.5 min-h-[1rem] space-x-3 text-[11px] text-slate-500">
             {game.timeLeft <= 20 && <span>Vibe: {target?.vibeTag}</span>}
             {game.timeLeft <= 10 && <span>Budget: {target?.priceRange}</span>}
@@ -135,7 +135,7 @@ export default function DiscoveryOverlay({ discovery, landmarks = [], visitedIds
           <div className={`text-[11px] font-medium uppercase tracking-[0.12em] ${game.outcome === 'found' ? 'text-emerald-700' : 'text-slate-500'}`}>
             {game.outcome === 'found' ? `Found it · +${game.gained} pts` : "Time's up"}
           </div>
-          <div className="mt-1 text-[15px] font-semibold text-slate-900">{target?.name}</div>
+          <div className="mt-1 text-[15px] font-semibold text-slate-100">{target?.name}</div>
           <div className="text-xs text-slate-500">{target?.area}</div>
           <div className="mt-3 flex items-center justify-between">
             <span className="text-xs text-slate-500">{game.score} pts total</span>
@@ -149,7 +149,7 @@ export default function DiscoveryOverlay({ discovery, landmarks = [], visitedIds
       {done && (
         <div className={`${glass} absolute left-1/2 top-16 w-[min(24rem,calc(100%-2rem))] -translate-x-1/2 p-5 text-center`}>
           <div className="text-[10px] font-medium uppercase tracking-[0.14em] text-slate-500">Your rank</div>
-          <div className="mt-1 text-xl font-semibold text-slate-900">{rankFor(game.found, rounds)}</div>
+          <div className="mt-1 text-xl font-semibold text-slate-100">{rankFor(game.found, rounds)}</div>
           <div className="mt-1 text-xs text-slate-500">
             {game.found}/{rounds} gems found · {game.score} pts
           </div>

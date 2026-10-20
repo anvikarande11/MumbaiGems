@@ -70,12 +70,12 @@ const INTRO_ALTITUDE = 1.2; // opening shot, whole city as a globe
 const MAX_PAN_DEG = 50; // soft wall: how far from the map centre the view may travel
 
 // Palette: pastel map, off-white land, slate linework
-const BACKGROUND = '#e8f4f8';
-const SEA = '#c4def0';
-const LAND = '#fafaf7';
-const LAND_SIDE = '#d5dde6';
-const COAST = '#94a3b8';
-const ATMOSPHERE = '#cfe5f5';
+const BACKGROUND = '#0a0f1d';
+const SEA = '#101b31';
+const LAND = '#16253b';
+const LAND_SIDE = '#0f1b2d';
+const COAST = '#334155';
+const ATMOSPHERE = '#17345a';
 
 // Layer heights, fractions of globe radius. Each road class gets its own height so
 // crossing roads never z-fight.
