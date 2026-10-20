@@ -32,7 +32,8 @@ export default function DiscoveryOverlay({ discovery, landmarks = [], visitedIds
     setSearchOpen(false);
     globeRef?.current?.focus(place.id);
   };
-  const { game, target, clue, toast, startGame, quitGame, nextRound } = discovery;
+  const { game, target, clue, hubs, unlockedCount, visitedCount, tier, toast, startGame, quitGame, nextRound } = discovery;
+  const [open, setOpen] = useState(false);
   const [isJournalOpen, setIsJournalOpen] = useState(false);
   
 
@@ -88,6 +89,51 @@ export default function DiscoveryOverlay({ discovery, landmarks = [], visitedIds
                 <span className="ml-3 text-xs text-cyan-200">Fly there</span>
               </button>
             ))}
+          </div>
+        )}
+      </div>
+
+      {/* Passport */}
+      <div className="absolute right-4 top-4 flex flex-col items-end gap-2">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          className={`${glass} px-4 py-2 text-xs font-medium text-slate-700 transition hover:text-slate-900`}
+        >
+          Passport · {unlockedCount}/{hubs.length} hubs
+        </button>
+        {open && (
+          <div className={`${glass} w-64 p-4`}>
+            <div className="text-[10px] font-medium uppercase tracking-[0.14em] text-slate-500">Explorer Badge</div>
+            <div className="mt-0.5 text-sm font-semibold text-slate-900">{tier}</div>
+            <div className="text-xs text-slate-500">
+              {unlockedCount}/{hubs.length} hubs unlocked
+            </div>
+            <ul className="mt-3 space-y-2.5">
+              {hubs.map((h) => (
+                <li key={h.id}>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className={h.unlocked ? 'font-medium text-slate-900' : 'text-slate-500'}>
+                      {h.unlocked ? '✓ ' : ''}
+                      {h.name}
+                    </span>
+                    <span className="font-mono text-[10px] text-slate-400">
+                      {h.count}/{h.total}
+                    </span>
+                  </div>
+                  <div className="mt-1 h-1 overflow-hidden rounded-full bg-slate-200/80">
+                    <div
+                      className="h-full rounded-full bg-slate-700 transition-[width] duration-500"
+                      style={{ width: `${h.total ? (h.count / h.total) * 100 : 0}%` }}
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-3 border-t border-slate-300/50 pt-2 text-[11px] text-slate-500">
+              {visitedCount} {visitedCount === 1 ? 'gem' : 'gems'} discovered
+            </div>
           </div>
         )}
       </div>
