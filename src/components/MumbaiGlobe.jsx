@@ -968,8 +968,10 @@ const MumbaiGlobe = forwardRef(function MumbaiGlobe({
   const [ready, setReady] = useState(false);
   const [lod, setLod] = useState(lodFor(INTRO_ALTITUDE));
   const [selected, setSelected] = useState(null);
+  const [selectedRegion, setSelectedRegion] = useState(null);
   const [hoverZone, setHoverZone] = useState(null);
   const [autoOverlay, setAutoOverlay] = useState(false);
+  const [layers, setLayers] = useState({ boundaries: true, roads: true, labels: true, water: true });
 
   useEffect(() => {
     clickRef.current = onLandmarkClick;
@@ -1028,7 +1030,7 @@ const MumbaiGlobe = forwardRef(function MumbaiGlobe({
   const vLand = useMemo(() => virtualizePolygons(landFeatures), [landFeatures]);
   // Zones go through the same stereographic virtualisation as the land.
   const vZones = useMemo(() => virtualizePolygons(zones.features), [zones]);
-  const polyData = useMemo(() => [...vLand, ...vZones], [vLand, vZones]);
+  const polyData = useMemo(() => (layers.boundaries ? [...vLand, ...vZones] : vLand), [vLand, vZones, layers.boundaries]);
   zoneRingsRef.current = useMemo(() => {
     const m = new Map();
     vZones.forEach((f) => {
@@ -1078,18 +1080,18 @@ const MumbaiGlobe = forwardRef(function MumbaiGlobe({
       });
     return [
       ...pins,
-      ...make([...placeLabels, ...hood.labels], 'place', (l) => (l.major ? 1 : 2), (l) => (l.major ? 1.4 : MINOR_LABEL_MAX_ALT)),
-      ...make(roadLabels, 'road', () => 4, () => 0.72),
+      ...(layers.labels ? make([...placeLabels, ...hood.labels], 'place', (l) => (l.major ? 1 : 2), (l) => (l.major ? 1.4 : MINOR_LABEL_MAX_ALT)) : []),
+      ...(layers.roads && layers.labels ? make(roadLabels, 'road', () => 4, () => 0.72) : []),
       // Atlas region names (replace the old centroid labels)
       ...zones.atlas.map((z) => {
         const v = projectToGlobe(z.lng, z.lat);
         return { ...z, id: `region-${z.zid}`, kind: 'region', vlat: v.lat, vlng: v.lng, priority: 0 };
       }),
-      ...make(waterLabels, 'water', () => 3, (l) => l.maxAlt ?? 0.9),
+      ...(layers.water && layers.labels ? make(waterLabels, 'water', () => 3, (l) => l.maxAlt ?? 0.9) : []),
     ];
-  }, [pins, placeLabels, hood.labels, zones, roadLabels, waterLabels]);
+  }, [pins, placeLabels, hood.labels, zones, roadLabels, waterLabels, layers.labels, layers.roads, layers.water]);
 
-  const paths = useMemo(() => vRoads.filter((r) => layerVisible(r.kind, lod)), [vRoads, lod]);
+  const paths = useMemo(() => (layers.roads ? vRoads.filter((r) => layerVisible(r.kind, lod)) : []), [vRoads, lod, layers.roads]);
   const pathStroke = useCallback((d) => ROAD_STYLES[d.kind].km * DEG_PER_KM * strokeScale(lod), [lod]);
 
   /* ---- Label collision pass ------------------------------------------------ */
@@ -1484,6 +1486,10 @@ const MumbaiGlobe = forwardRef(function MumbaiGlobe({
           polygonStrokeColor={polyStroke}
           polygonAltitude={polyAlt}
           onPolygonHover={handlePolygonHover}
+          onPolygonClick={(feature) => {
+            const properties = feature?.properties;
+            if (properties?.__zone) setSelectedRegion(properties);
+          }}
           polygonCapCurvatureResolution={3}
           polygonsTransitionDuration={0}
           /* Roads, minor streets and boundaries */
@@ -1514,6 +1520,20 @@ const MumbaiGlobe = forwardRef(function MumbaiGlobe({
       {!ready && (
         <div className="absolute inset-0 flex items-center justify-center bg-[#cfeaf3] text-xs tracking-[0.2em] text-slate-500">
           LOADING MAP…
+        </div>
+      )}
+
+      {selectedRegion && !selected && (
+        <div className="absolute bottom-16 left-4 max-w-[19rem] rounded-2xl border border-slate-300/50 bg-white/85 p-4 shadow-[0_8px_28px_rgba(51,65,85,0.14)] backdrop-blur-xl">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">Mapped locality</div>
+              <div className="mt-1 text-sm font-semibold text-slate-900">{selectedRegion.name}</div>
+              {selectedRegion.areas && <p className="mt-1 text-xs leading-relaxed text-slate-600">{selectedRegion.areas}</p>}
+              <div className="mt-2 text-[10px] text-slate-400">Boundary coverage varies by available geographic data.</div>
+            </div>
+            <button type="button" aria-label="Close area information" onClick={() => setSelectedRegion(null)} className="text-slate-400 transition hover:text-slate-700">×</button>
+          </div>
         </div>
       )}
 
@@ -1561,6 +1581,20 @@ const MumbaiGlobe = forwardRef(function MumbaiGlobe({
           ))}
         </div>
       )}
+
+      <div className="absolute bottom-14 right-4 flex max-w-[15rem] flex-wrap justify-end gap-1.5 rounded-2xl border border-slate-300/50 bg-white/70 p-2 shadow-sm backdrop-blur-xl">
+        <span className="w-full px-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500">Atlas layers</span>
+        {[
+          ['boundaries', 'Areas'],
+          ['roads', 'Roads & rail'],
+          ['labels', 'Place names'],
+          ['water', 'Water'],
+        ].map(([key, label]) => (
+          <button key={key} type="button" aria-pressed={layers[key]} onClick={() => setLayers((current) => ({ ...current, [key]: !current[key] }))} className={`${btn} !px-2 !py-1 ${layers[key] ? 'border-slate-500 bg-slate-900 text-white hover:text-white' : ''}`}>
+            {label}
+          </button>
+        ))}
+      </div>
 
       <div className="absolute bottom-4 right-4 flex gap-2">
         <button type="button" aria-label="Zoom out" onClick={() => zoomBy(1.8)} className={btn}>
