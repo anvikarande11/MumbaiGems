@@ -46,6 +46,7 @@
 
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import Globe from 'react-globe.gl';
+import { getPlaceImage } from '../utils/placeImages';
 
 /* -------------------------------------------------------------------------- */
 /*  Constants                                                                  */
@@ -870,19 +871,12 @@ function buildElement(d, { onActivate }) {
     const card = root.querySelector('.mg-card');
     const photo = root.querySelector('[data-role="photo"]');
     const loadLivePhoto = async () => {
-      if (card.dataset.loaded === '1' || card.dataset.loading === '0') return;
-      try {
-        const response = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(d.name.replaceAll(' ', '_'))}`);
-        if (!response.ok) throw new Error('place photo unavailable');
-        const result = await response.json();
-        const image = result.originalimage?.source || result.thumbnail?.source;
-        if (image) { photo.src = image; photo.alt = `${d.name} landmark`; }
-        card.dataset.loaded = '1';
-        card.dataset.loading = '0';
-      } catch {
-        card.dataset.loading = '0';
-        root.querySelector('[data-role="source"]').textContent = 'Live location · image unavailable';
-      }
+      if (card.dataset.loaded === '1') return;
+      const image = await getPlaceImage(d);
+      photo.src = image;
+      photo.alt = `${d.name}, Mumbai landmark`;
+      card.dataset.loaded = '1';
+      card.dataset.loading = '0';
     };
 
     const lift = (on) => {

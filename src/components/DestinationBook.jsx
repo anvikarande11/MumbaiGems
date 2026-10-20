@@ -1,25 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import './destination-book.css';
-
-const fallbackImage = 'https://images.unsplash.com/photo-1595658658481-d53d3f999875?auto=format&fit=crop&w=1400&q=85';
+import { FALLBACK_IMAGE, getPlaceImage } from '../utils/placeImages';
 
 function usePlaceImage(place) {
-  const [image, setImage] = useState(null);
+  const [image, setImage] = useState(FALLBACK_IMAGE);
   useEffect(() => {
     let cancelled = false;
-    setImage(null);
-    const title = encodeURIComponent(`${place.name} Mumbai`);
-    fetch(`https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${title}&gsrnamespace=6&gsrlimit=1&prop=imageinfo&iiprop=url|extmetadata&iiurlwidth=1200&format=json&origin=*`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (cancelled) return;
-        const page = data?.query?.pages ? Object.values(data.query.pages)[0] : null;
-        setImage(page?.imageinfo?.[0]?.thumburl || page?.imageinfo?.[0]?.url || fallbackImage);
-      })
-      .catch(() => { if (!cancelled) setImage(fallbackImage); });
+    setImage(FALLBACK_IMAGE);
+    getPlaceImage(place).then((nextImage) => {
+      if (!cancelled) setImage(nextImage);
+    });
     return () => { cancelled = true; };
   }, [place]);
-  return image || fallbackImage;
+  return image;
 }
 
 export default function DestinationBook({ place, landmarks, onClose, onSelect }) {
