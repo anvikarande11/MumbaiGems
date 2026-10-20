@@ -2,8 +2,8 @@ import { useMemo, useState } from 'react';
 import { CATEGORY_OPTIONS, INTEREST_OPTIONS, BUDGET_OPTIONS, DEFAULT_PREFERENCES } from '../utils/discoveryEngine';
 
 const toggle = (list, value) => list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
-export default function DiscoveryConsole({ landmarks, onDiscover, onClose }) {
-  const [prefs, setPrefs] = useState(DEFAULT_PREFERENCES);
+export default function DiscoveryConsole({ landmarks, initialPreferences, onDiscover, onClose }) {
+  const [prefs, setPrefs] = useState(() => initialPreferences || DEFAULT_PREFERENCES);
   const areas = useMemo(() => [...new Set(landmarks.map((place) => place.area).filter(Boolean))].slice(0, 16), [landmarks]);
   const flip = (key, value) => setPrefs((current) => ({ ...current, [key]: toggle(current[key], value) }));
   return <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="discovery-title">
@@ -15,7 +15,7 @@ export default function DiscoveryConsole({ landmarks, onDiscover, onClose }) {
         <fieldset><legend className="mb-3 text-xs font-semibold uppercase tracking-[.16em]">Maximum estimated spend per person</legend><div className="flex flex-wrap gap-2">{BUDGET_OPTIONS.map(([value, label]) => <button key={label} type="button" onClick={() => setPrefs((current) => ({ ...current, budget: value }))} className={`rounded-full border px-3 py-2 text-xs ${prefs.budget === value ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white/70'}`}>{label}</button>)}</div><label className="mt-3 flex items-center gap-2 text-xs text-slate-600"><input type="checkbox" checked={prefs.includeUnverifiedCosts} onChange={(event) => setPrefs((current) => ({ ...current, includeUnverifiedCosts: event.target.checked }))} /> Include places with unverified costs</label></fieldset>
         <fieldset><legend className="mb-3 text-xs font-semibold uppercase tracking-[.16em]">Your kind of day</legend><div className="grid grid-cols-2 gap-2">{INTEREST_OPTIONS.map(([value, label]) => <button key={value} type="button" onClick={() => flip('niceToHave', value)} className={`rounded-xl border px-3 py-2 text-left text-xs ${prefs.niceToHave.includes(value) ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white/70'}`}>{label}</button>)}</div></fieldset>
       </div>
-      <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-5"><p className="text-xs text-slate-500">Mumbai is your starting city. Costs are estimates unless marked otherwise.</p><div className="flex gap-2"><button type="button" onClick={() => setPrefs(DEFAULT_PREFERENCES)} className="rounded-full border border-slate-300 px-4 py-2 text-xs">Reset</button><button type="button" onClick={() => onDiscover(prefs)} className="rounded-full bg-slate-900 px-5 py-2.5 text-xs font-medium text-white">Discover my Mumbai</button></div></div>
+      <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-5"><p className="text-xs text-slate-500">Mumbai is your starting city. Costs are estimates unless marked otherwise.</p><div className="flex gap-2"><button type="button" onClick={() => setPrefs(DEFAULT_PREFERENCES)} className="rounded-full border border-slate-300 px-4 py-2 text-xs">Reset preferences</button><button type="button" onClick={() => onDiscover(prefs)} className="rounded-full bg-slate-900 px-5 py-2.5 text-xs font-medium text-white">Discover my Mumbai</button></div></div>
     </section>
   </div>;
 }

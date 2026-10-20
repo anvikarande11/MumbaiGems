@@ -6,9 +6,8 @@ import AuthView from './components/AuthView';
 import IntroView from './components/IntroView';
 import MumbaiGlobe from './components/MumbaiGlobe';
 import DestinationBook from './components/DestinationBook';
-import gemsData, { MUMBAI_GEMS } from './data/gemsData';
+import { MUMBAI_GEMS } from './data/gemsData';
 import { useDiscovery } from './hooks/useDiscovery';
-import neighborhoods from "./data/neighborhoods";
 
 export default function App() {
   const globeRef = useRef(null);
@@ -31,7 +30,7 @@ export default function App() {
       {/* Mounted from the start so the map is ready when the intro fades. */}
       <MumbaiGlobe
         ref={globeRef}
-        landmarks={MUMBAI_GEMS}
+        landmarks={filtered}
           active={phase === 'leaving' || phase === 'map'}
         blind={discovery.blind}
         visitedIds={discovery.visited}
@@ -40,12 +39,14 @@ export default function App() {
       {phase === 'map' && (
         <DiscoveryOverlay
           discovery={discovery}
-          landmarks={MUMBAI_GEMS}
+          landmarks={filtered}
+          personalizationActive={Boolean(preferences)}
           visitedIds={discovery.visited}
           globeRef={globeRef}
           profile={profile}
           onOpenDiscovery={() => setDiscoveryOpen(true)}
           resultCount={filtered.length}
+          onShowAll={() => { setPreferences(null); setSelectedPlace(null); }}
         />
       )}
       {selectedPlace && phase === 'map' && (
@@ -56,7 +57,7 @@ export default function App() {
           onSelect={setSelectedPlace}
         />
       )}
-      {discoveryOpen && phase === 'map' && <DiscoveryConsole landmarks={MUMBAI_GEMS} onClose={() => setDiscoveryOpen(false)} onDiscover={(next) => { setPreferences(next); setDiscoveryOpen(false); setSelectedPlace(null); }} />}
+      {discoveryOpen && phase === 'map' && <DiscoveryConsole landmarks={MUMBAI_GEMS} initialPreferences={preferences} onClose={() => setDiscoveryOpen(false)} onDiscover={(next) => { setPreferences(next); setDiscoveryOpen(false); setSelectedPlace(null); }} />}
       {phase === 'intro' && <IntroView onEnter={() => setPhase('auth')} />}
       {phase === 'auth' && <AuthView onContinue={(nextProfile) => { setProfile(nextProfile); setPhase('leaving'); }} />}
       {phase === 'leaving' && <IntroView leaving onEnter={() => undefined} />}
