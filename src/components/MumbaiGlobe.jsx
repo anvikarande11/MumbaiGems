@@ -921,12 +921,15 @@ function buildElement(d, { onActivate }) {
   const label = document.createElement('div');
   label.textContent = d.name;
   const water = d.kind === 'water';
+  const road = d.kind === 'road';
   label.style.cssText = [
     'position:absolute;left:0;top:0;transform:translate(-50%,-50%)',
     'white-space:nowrap;opacity:0;transition:opacity .4s ease;pointer-events:none;user-select:none',
     water
       ? 'font:italic 500 12px ui-sans-serif,system-ui,sans-serif;letter-spacing:.18em;color:#6b8fb0'
-      : `font:${d.major ? 700 : 600} 10px ui-sans-serif,system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:${d.major ? '#475569' : '#64748b'}`,
+      : road
+        ? 'font:600 8px ui-sans-serif,system-ui,sans-serif;letter-spacing:.05em;text-transform:uppercase;color:#936f4f'
+        : `font:${d.major ? 700 : 600} 10px ui-sans-serif,system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:${d.major ? '#475569' : '#64748b'}`, 
     // Major hubs: soft halo (0 0 4px #fafaf7, layered twice for density). Minor and water keep the tighter halo.
     d.major ? 'text-shadow:0 0 4px #fafaf7,0 0 4px #fafaf7' : 'text-shadow:0 0 3px #fafaf7,0 0 3px #fafaf7,0 0 6px #fafaf7',
   ].join(';');
@@ -1054,6 +1057,16 @@ const MumbaiGlobe = forwardRef(function MumbaiGlobe({
     [landmarks],
   );
 
+  const roadLabels = useMemo(() => {
+    const seen = new Set();
+    return vRoads.flatMap((road, i) => {
+      if (!road.name || seen.has(road.name) || road.points.length < 2) return [];
+      seen.add(road.name);
+      const point = road.points[Math.floor(road.points.length / 2)];
+      return [{ name: road.name, lat: point[1], lng: point[0], kind: road.kind, id: `road-label-${i}` }];
+    });
+  }, [vRoads]);
+
   const elements = useMemo(() => {
     const make = (items, kind, prio, maxAlt) =>
       items.map((l, i) => {
@@ -1070,7 +1083,8 @@ const MumbaiGlobe = forwardRef(function MumbaiGlobe({
       });
     return [
       ...pins,
-      ...make(placeLabels, 'place', (l) => (l.major ? 1 : 2), (l) => (l.major ? 1.4 : MINOR_LABEL_MAX_ALT)),
+      ...make([...placeLabels, ...hood.labels], 'place', (l) => (l.major ? 1 : 2), (l) => (l.major ? 1.4 : MINOR_LABEL_MAX_ALT)),
+      ...make(roadLabels, 'road', () => 4, () => 0.72),
       // Atlas region names (replace the old centroid labels)
       ...zones.atlas.map((z) => {
         const v = projectToGlobe(z.lng, z.lat);
@@ -1078,7 +1092,7 @@ const MumbaiGlobe = forwardRef(function MumbaiGlobe({
       }),
       ...make(waterLabels, 'water', () => 3, (l) => l.maxAlt ?? 0.9),
     ];
-  }, [pins, placeLabels, zones, waterLabels]);
+  }, [pins, placeLabels, hood.labels, zones, roadLabels, waterLabels]);
 
   const paths = useMemo(() => vRoads.filter((r) => layerVisible(r.kind, lod)), [vRoads, lod]);
   const pathStroke = useCallback((d) => ROAD_STYLES[d.kind].km * DEG_PER_KM * strokeScale(lod), [lod]);
