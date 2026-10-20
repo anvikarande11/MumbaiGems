@@ -953,6 +953,7 @@ const MumbaiGlobe = forwardRef(function MumbaiGlobe({
   visitedIds = null,
   overlayActive = false,
   autoDetectOverlays = false,
+  layerVisibility = {},
 }, ref) {
   const globeRef = useRef(null);
   const containerRef = useRef(null);
@@ -1031,7 +1032,10 @@ const MumbaiGlobe = forwardRef(function MumbaiGlobe({
   const vLand = useMemo(() => virtualizePolygons(landFeatures), [landFeatures]);
   // Zones go through the same stereographic virtualisation as the land.
   const vZones = useMemo(() => virtualizePolygons(zones.features), [zones]);
-  const polyData = useMemo(() => [...vLand, ...vZones], [vLand, vZones]);
+  const polyData = useMemo(() => [
+    ...vLand,
+    ...(layerVisibility.neighborhoods === false ? [] : vZones),
+  ], [vLand, vZones, layerVisibility.neighborhoods]);
   zoneRingsRef.current = useMemo(() => {
     const m = new Map();
     vZones.forEach((f) => {
@@ -1070,17 +1074,20 @@ const MumbaiGlobe = forwardRef(function MumbaiGlobe({
       });
     return [
       ...pins,
-      ...make(placeLabels, 'place', (l) => (l.major ? 1 : 2), (l) => (l.major ? 1.4 : MINOR_LABEL_MAX_ALT)),
+      ...(layerVisibility.labels === false ? [] : make(placeLabels, 'place', (l) => (l.major ? 1 : 2), (l) => (l.major ? 1.4 : MINOR_LABEL_MAX_ALT))),
       // Atlas region names (replace the old centroid labels)
-      ...zones.atlas.map((z) => {
+      ...(layerVisibility.neighborhoods === false ? [] : zones.atlas.map((z) => {
         const v = projectToGlobe(z.lng, z.lat);
         return { ...z, id: `region-${z.zid}`, kind: 'region', vlat: v.lat, vlng: v.lng, priority: 0 };
-      }),
-      ...make(waterLabels, 'water', () => 3, (l) => l.maxAlt ?? 0.9),
+      })),
+      ...(layerVisibility.water === false ? [] : make(waterLabels, 'water', () => 3, (l) => l.maxAlt ?? 0.9)),
     ];
-  }, [pins, placeLabels, zones, waterLabels]);
+  }, [pins, placeLabels, zones, waterLabels, layerVisibility.labels, layerVisibility.neighborhoods, layerVisibility.water]);
 
-  const paths = useMemo(() => vRoads.filter((r) => layerVisible(r.kind, lod)), [vRoads, lod]);
+  const paths = useMemo(() => {
+    if (layerVisibility.roads === false) return [];
+    return vRoads.filter((r) => layerVisible(r.kind, lod));
+  }, [vRoads, lod, layerVisibility.roads]);
   const pathStroke = useCallback((d) => ROAD_STYLES[d.kind].km * DEG_PER_KM * strokeScale(lod), [lod]);
 
   /* ---- Label collision pass ------------------------------------------------ */

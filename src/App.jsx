@@ -16,6 +16,7 @@ export default function App() {
   const [selectedPlace, setSelectedPlace] = useState(null);
   const [discoveryOpen, setDiscoveryOpen] = useState(false);
   const [preferences, setPreferences] = useState(null);
+  const [layerVisibility, setLayerVisibility] = useState({ roads: true, neighborhoods: true, water: true, labels: true });
   const filtered = useMemo(() => filterDestinations(MUMBAI_GEMS, preferences || {}).matches, [preferences]);
   const discovery = useDiscovery(filtered, globeRef);
 
@@ -35,6 +36,7 @@ export default function App() {
         blind={discovery.blind}
         visitedIds={discovery.visited}
         onLandmarkClick={(place) => { discovery.handlePick(place); setSelectedPlace(place); }}
+        layerVisibility={layerVisibility}
       />
       {phase === 'map' && (
         <DiscoveryOverlay
@@ -47,6 +49,8 @@ export default function App() {
           onOpenDiscovery={() => setDiscoveryOpen(true)}
           resultCount={filtered.length}
           onShowAll={() => { setPreferences(null); setSelectedPlace(null); }}
+          layerVisibility={layerVisibility}
+          onLayerVisibilityChange={(key) => setLayerVisibility((current) => ({ ...current, [key]: !current[key] }))}
         />
       )}
       {selectedPlace && phase === 'map' && (
