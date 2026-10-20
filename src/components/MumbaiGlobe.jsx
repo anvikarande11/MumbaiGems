@@ -701,7 +701,10 @@ const polyAlt = (d) => (d.properties?.__zone ? ZONE_ALT : LAND_ALT);
 const pointLat = (p) => p.lat;
 const pointLng = (p) => p.lng;
 const pointAlt = (p) => p.alt;
-const roadColor = (d) => ROAD_STYLES[d.kind].color;
+const roadColor = (d) => {
+  const colors = { boundary: '#c3dfe5', minor: '#b4d6df', arterial: '#8fbccc', expressway: '#78aebe', bridge: '#f0c987' };
+  return colors[d.kind] ?? ROAD_STYLES[d.kind].color;
+};
 const constant = (v) => () => v;
 const capColor = constant(LAND);
 const sideColor = constant(LAND_SIDE);
@@ -719,37 +722,37 @@ const icon = (body) =>
 const MARKER_KINDS = {
   cafe: {
     label: 'Café',
-    color: '#8a5a3b',
+    color: '#a9cfe3',
     icon: icon('<path d="M6 2v2M10 2v2M14 2v2"/><path d="M16 8h1a4 4 0 0 1 0 8h-1"/><path d="M4 8h12v9a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4z"/>'),
   },
   pub: {
     label: 'Pub',
-    color: '#9b3d5a',
+    color: '#c9b8e8',
     icon: icon('<path d="M5 4h14l-7 8z"/><path d="M12 12v9M8 21h8"/>'),
   },
   study: {
     label: 'Study',
-    color: '#5a91a4',
+    color: '#b8dce8',
     icon: icon('<path d="M12 7v14"/><path d="M3 4h6a3 3 0 0 1 3 3 3 3 0 0 1 3-3h6v14h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3H3z"/>'),
   },
   food: {
     label: 'Eats',
-    color: '#d78b63',
+    color: '#f3d8a6',
     icon: icon('<path d="M4 7.5Q12 3.5 20 7.5L12 21z"/><circle cx="10.5" cy="10.5" r=".9"/><circle cx="14" cy="11.5" r=".9"/><circle cx="12" cy="15.5" r=".9"/>'),
   },
   play: {
     label: 'Hangout',
-    color: '#8f83b8',
+    color: '#c8dfb8',
     icon: icon('<rect x="2" y="7" width="20" height="11" rx="5.5"/><path d="M7 10.5v4M5 12.5h4"/><circle cx="15.5" cy="11.5" r=".8"/><circle cx="17.5" cy="13.5" r=".8"/>'),
   },
   viewpoint: {
     label: 'Viewpoint',
-    color: '#4f9a8d',
+    color: '#b8dfc8',
     icon: icon('<circle cx="12" cy="12" r="10"/><path d="m16.2 7.8-1.8 5.4a2 2 0 0 1-1.2 1.2l-5.4 1.8 1.8-5.4a2 2 0 0 1 1.2-1.2z"/>'),
   },
   culture: {
     label: 'Culture',
-    color: '#bd9b56',
+    color: '#f1e0ad',
     icon: icon('<path d="M3 9.5 12 4l9 5.5z"/><path d="M6 12v6M10 12v6M14 12v6M18 12v6"/><path d="M3 20.5h18"/>'),
   },
 };
@@ -790,7 +793,7 @@ const MARKER_CSS = `
   opacity:0;visibility:hidden;transform:translate(-50%,4px);
   transition:opacity .18s ease,transform .18s ease,visibility 0s linear .18s}
 .mg-node:hover .mg-tip,.mg-node:focus-visible .mg-tip,.mg-node.is-active .mg-tip{opacity:1;visibility:visible;transform:translate(-50%,0);transition-delay:0s}
-.mg-tip strong{overflow:hidden;text-overflow:ellipsis;font:600 12px/1.25 ui-sans-serif,system-ui,sans-serif;color:#1e293b}
+.mg-tip strong{overflow:hidden;text-overflow:ellipsis;font:600 13px/1.2 'Bradley Hand', 'Segoe Print', cursive;color:#244854;letter-spacing:.01em}
 .mg-tip span{overflow:hidden;text-overflow:ellipsis;font:500 10px/1.3 ui-sans-serif,system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#64748b}
 .mg-card{position:absolute;left:50%;bottom:calc(100% + 42px);width:220px;overflow:hidden;pointer-events:none;border:1px solid rgba(255,255,255,.82);border-radius:16px;background:rgba(255,253,247,.96);box-shadow:0 16px 38px rgba(54,96,110,.22);opacity:0;visibility:hidden;transform:translate(-50%,8px);transition:opacity .2s ease,transform .2s ease,visibility 0s linear .2s;z-index:30}
 .mg-node:hover .mg-card,.mg-node:focus-visible .mg-card,.mg-node.is-active .mg-card{opacity:1;visibility:visible;transform:translate(-50%,0);transition-delay:0s}
@@ -809,10 +812,13 @@ const MARKER_CSS = `
 .mg-node.is-dot.is-visited::after{display:none}
 .mg-region{position:absolute;left:0;top:0;transform:translate(-50%,-50%);padding-left:.36em;white-space:nowrap;pointer-events:none;user-select:none;opacity:0;
   transition:opacity .5s ease,color .25s ease,text-shadow .25s ease;
-  font:500 var(--fs,12px)/1 ui-serif,Georgia,'Times New Roman',serif;letter-spacing:.36em;text-transform:uppercase;
+  font:600 var(--fs,12px)/1.1 'Bradley Hand', 'Segoe Print', cursive;letter-spacing:.08em;text-transform:none;
   color:color-mix(in srgb,var(--hue,#64748b) 45%,#475569);
   text-shadow:0 0 4px #fafaf7,0 0 4px #fafaf7,0 0 10px #fafaf7}
 .mg-region[data-hot="1"]{color:color-mix(in srgb,var(--hue,#64748b) 70%,#1e293b);text-shadow:0 0 4px #fafaf7,0 0 8px #fafaf7,0 0 14px var(--hue,#64748b)}
+.mg-node::before{content:'';position:absolute;left:50%;top:calc(100% + 5px);height:18px;border-left:1px dashed color-mix(in srgb,var(--c) 65%,#fff);opacity:.7;transform:translateX(-50%);pointer-events:none}
+.mg-node::after{content:'';position:absolute;left:50%;top:calc(100% + 22px);width:5px;height:5px;border:1px solid var(--c);border-radius:50%;background:#fff;transform:translateX(-50%);opacity:.8}
+.mg-node.is-dot::before,.mg-node.is-dot::after{opacity:0}
 .mg-glow{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;opacity:0;transition:opacity .22s ease;
   filter:drop-shadow(0 0 5px var(--glow,#38bdf8))}
 .mg-glow.is-on{opacity:1}
@@ -1432,7 +1438,9 @@ const MumbaiGlobe = forwardRef(function MumbaiGlobe({
           showAtmosphere
           atmosphereColor={ATMOSPHERE}
           atmosphereAltitude={0.1}
-          showGraticules={false}
+          showGraticules={true}
+          graticuleLineColor="rgba(122, 177, 190, 0.28)"
+          graticuleLineResolution={2}
           onGlobeReady={handleGlobeReady}
           onZoom={handleZoom}
           /* Land + neighborhood zones (projected, densified) */
