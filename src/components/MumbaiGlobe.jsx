@@ -1421,15 +1421,15 @@ const MumbaiGlobe = forwardRef(function MumbaiGlobe({
     const controls = globe?.controls();
     if (!globe || !controls) return undefined;
 
-    // After sign-in, reveal the full globe, let it make a gentle 1.5 second
+    // After sign-in, reveal the full globe, let it make a gentle 2.2 second
     // spin, then ease into Mumbai so the destination feels discovered.
     globe.pointOfView({ lat: 0, lng: 0, altitude: INTRO_ALTITUDE }, 0);
     controls.autoRotate = true;
-    controls.autoRotateSpeed = 7;
+    controls.autoRotateSpeed = 6;
     const spinTimer = setTimeout(() => {
       controls.autoRotate = false;
       globe.pointOfView(HOME_POV, 1350);
-    }, 1500);
+    }, 2200);
 
     return () => {
       clearTimeout(spinTimer);

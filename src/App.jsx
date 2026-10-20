@@ -21,7 +21,7 @@ export default function App() {
 
   useEffect(() => {
     if (phase !== 'leaving') return undefined;
-    const t = setTimeout(() => setPhase('map'), 2900);
+    const t = setTimeout(() => setPhase('map'), 3900);
     return () => clearTimeout(t);
   }, [phase]);
 
