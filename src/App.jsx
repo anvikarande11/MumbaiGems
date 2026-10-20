@@ -1,8 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import DiscoveryOverlay from './components/DiscoveryOverlay';
+import DiscoveryConsole from './components/DiscoveryConsole';
+import { filterDestinations } from './utils/discoveryEngine';
 import AuthView from './components/AuthView';
 import IntroView from './components/IntroView';
 import MumbaiGlobe from './components/MumbaiGlobe';
+import DestinationBook from './components/DestinationBook';
 import gemsData, { MUMBAI_GEMS } from './data/gemsData';
 import { useDiscovery } from './hooks/useDiscovery';
 import neighborhoods from "./data/neighborhoods";
@@ -11,11 +14,15 @@ export default function App() {
   const globeRef = useRef(null);
   const [phase, setPhase] = useState('intro'); // intro -> auth -> leaving -> map
   const [profile, setProfile] = useState(null);
-  const discovery = useDiscovery(gemsData, globeRef);
+  const [selectedPlace, setSelectedPlace] = useState(null);
+  const [discoveryOpen, setDiscoveryOpen] = useState(false);
+  const [preferences, setPreferences] = useState(null);
+  const filtered = useMemo(() => filterDestinations(MUMBAI_GEMS, preferences || {}).matches, [preferences]);
+  const discovery = useDiscovery(filtered, globeRef);
 
   useEffect(() => {
     if (phase !== 'leaving') return undefined;
-    const t = setTimeout(() => setPhase('map'), 850);
+    const t = setTimeout(() => setPhase('map'), 2900);
     return () => clearTimeout(t);
   }, [phase]);
 
@@ -25,10 +32,10 @@ export default function App() {
       <MumbaiGlobe
         ref={globeRef}
         landmarks={MUMBAI_GEMS}
-        active={phase !== 'intro'}
+          active={phase === 'leaving' || phase === 'map'}
         blind={discovery.blind}
         visitedIds={discovery.visited}
-        onLandmarkClick={discovery.handlePick}
+        onLandmarkClick={(place) => { discovery.handlePick(place); setSelectedPlace(place); }}
       />
       {phase === 'map' && (
         <DiscoveryOverlay
@@ -37,8 +44,19 @@ export default function App() {
           visitedIds={discovery.visited}
           globeRef={globeRef}
           profile={profile}
+          onOpenDiscovery={() => setDiscoveryOpen(true)}
+          resultCount={filtered.length}
         />
       )}
+      {selectedPlace && phase === 'map' && (
+        <DestinationBook
+          place={selectedPlace}
+          landmarks={MUMBAI_GEMS}
+          onClose={() => setSelectedPlace(null)}
+          onSelect={setSelectedPlace}
+        />
+      )}
+      {discoveryOpen && phase === 'map' && <DiscoveryConsole landmarks={MUMBAI_GEMS} onClose={() => setDiscoveryOpen(false)} onDiscover={(next) => { setPreferences(next); setDiscoveryOpen(false); setSelectedPlace(null); }} />}
       {phase === 'intro' && <IntroView onEnter={() => setPhase('auth')} />}
       {phase === 'auth' && <AuthView onContinue={(nextProfile) => { setProfile(nextProfile); setPhase('leaving'); }} />}
       {phase === 'leaving' && <IntroView leaving onEnter={() => undefined} />}

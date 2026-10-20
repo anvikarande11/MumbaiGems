@@ -182,3 +182,96 @@
     border-right-color: var(--border);
   }
 }
+
+/* Responsive shell for the immersive map experience. */
+.mg-mobile-landmark-list {
+  display: none;
+}
+
+@media (max-width: 700px) {
+  html, body, #root {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .mg-overlay-controls {
+    inset-inline: 12px;
+  }
+
+  .mg-mobile-landmark-list {
+    display: flex;
+    position: absolute;
+    inset-inline: 12px;
+    bottom: 56px;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 4px 1px 8px;
+    scrollbar-width: none;
+  }
+
+  .mg-mobile-landmark-list::-webkit-scrollbar { display: none; }
+  .mg-mobile-landmark-list button { min-height: 44px; flex: 0 0 auto; }
+}
+
+@media (max-width: 430px) {
+  .mg-top-actions {
+    left: 12px !important;
+    right: 12px;
+    top: 12px !important;
+    flex-wrap: wrap;
+    align-items: stretch;
+  }
+
+  .mg-top-actions > button { min-height: 44px; }
+  .mg-profile { top: 12px !important; right: 12px !important; }
+  .mg-profile span:last-child { display: none; }
+  .mg-search { top: 68px !important; width: calc(100% - 24px) !important; }
+  .mg-game-hud { top: 120px !important; }
+  .mg-result-count { bottom: 12px !important; max-width: calc(100% - 24px); text-align: center; }
+}
+
+@media (max-width: 700px) {
+  .destination-book-backdrop {
+    display: block;
+    overflow-y: auto;
+    padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
+  }
+
+  .destination-book {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-height: min(780px, calc(100dvh - 24px));
+    height: auto;
+    max-height: none;
+    margin: 0 auto;
+    overflow: hidden;
+    border-radius: 18px;
+  }
+
+  .book-visual-page {
+    flex: 0 0 min(48dvh, 380px);
+    min-height: 280px;
+  }
+
+  .book-visual-copy { left: 24px; right: 20px; bottom: 48px; }
+  .book-visual-copy h2 { font-size: clamp(34px, 11vw, 52px); }
+  .book-notes-page { min-height: 420px; padding: 22px 20px max(20px, env(safe-area-inset-bottom)); }
+  .book-toolbar { align-items: flex-start; }
+  .book-toolbar > div { display: flex; gap: 14px; }
+  .book-action { min-height: 44px; padding: 10px 0; }
+  .book-scroll { overflow: visible; }
+  .book-facts { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .book-pagination { position: sticky; bottom: 0; padding-top: 14px; background: #f1e6d0; }
+  .book-pagination button { min-height: 44px; padding-inline: 10px; }
+  .book-close { top: 12px; right: 12px; z-index: 2; min-width: 44px; min-height: 44px; }
+}
+
+@media (max-width: 380px) {
+  .book-facts { grid-template-columns: 1fr; }
+  .book-notes-page { padding-inline: 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
