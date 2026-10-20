@@ -1160,7 +1160,7 @@ const MumbaiGlobe = forwardRef(function MumbaiGlobe({
           it.w = r.width;
           it.h = r.height;
         }
-        const w = it.w || d.name.length * d.fs * 1.1 + 16;
+        const w = it.w || String(d.name ?? '').length * d.fs * 1.1 + 16;
         const h = it.h || d.fs + 4;
         const box = { l: x - w / 2 - 6, r: x + w / 2 + 6, t: y - h / 2 - 4, b: y + h / 2 + 4 };
         if (regionBoxes.some((q) => overlap(box, q))) return hide();
@@ -1191,7 +1191,7 @@ const MumbaiGlobe = forwardRef(function MumbaiGlobe({
         it.w = r.width;
         it.h = r.height;
       }
-      const w = it.w || d.name.length * 7 + 16;
+      const w = it.w || String(d.name ?? '').length * 7 + 16;
       const h = it.h || 22;
       const box = { owner: d.id, l: x - w / 2 - 2, r: x + w / 2 + 2, t: y - h / 2 - 1, b: y + h / 2 + 1 };
 
