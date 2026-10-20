@@ -4,6 +4,8 @@ import IntroView from './components/IntroView';
 import MumbaiGlobe from './components/MumbaiGlobe';
 import gemsData, { MUMBAI_GEMS } from './data/gemsData';
 import { useDiscovery } from './hooks/useDiscovery';
+import neighborhoods from "./data/neighborhoods";
+
 export default function App() {
   const globeRef = useRef(null);
   const [phase, setPhase] = useState('intro'); // intro -> leaving -> map
@@ -16,7 +18,7 @@ export default function App() {
   }, [phase]);
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-[#0a0f1d]">
+    <div className="relative h-screen w-screen overflow-hidden bg-[#e8f4f8]">
       {/* Mounted from the start so the map is ready when the intro fades. */}
       <MumbaiGlobe
         ref={globeRef}
