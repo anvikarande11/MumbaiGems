@@ -1060,10 +1060,11 @@ const MumbaiGlobe = forwardRef(function MumbaiGlobe({
   const roadLabels = useMemo(() => {
     const seen = new Set();
     return vRoads.flatMap((road, i) => {
-      if (!road.name || seen.has(road.name) || road.points.length < 2) return [];
+      const path = Array.isArray(road.path) ? road.path : [];
+      if (!road.name || seen.has(road.name) || path.length < 2) return [];
       seen.add(road.name);
-      const point = road.points[Math.floor(road.points.length / 2)];
-      return [{ name: road.name, lat: point[1], lng: point[0], kind: road.kind, id: `road-label-${i}` }];
+      const point = path[Math.floor(path.length / 2)];
+      return [{ name: road.name, lat: point.lat, lng: point.lng, kind: road.kind, id: `road-label-${i}` }];
     });
   }, [vRoads]);
 
