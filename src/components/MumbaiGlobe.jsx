@@ -46,7 +46,6 @@
 
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import Globe from 'react-globe.gl';
-import { getPlaceImage } from '../utils/placeImages';
 
 /* -------------------------------------------------------------------------- */
 /*  Constants                                                                  */
@@ -872,11 +871,18 @@ function buildElement(d, { onActivate }) {
     const photo = root.querySelector('[data-role="photo"]');
     const loadLivePhoto = async () => {
       if (card.dataset.loaded === '1' || card.dataset.loading === '0') return;
-      const image = await getPlaceImage(d);
-      photo.src = image;
-      photo.alt = `${d.name}, Mumbai landmark`;
-      card.dataset.loaded = '1';
-      card.dataset.loading = '0';
+      try {
+        const response = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(d.name.replaceAll(' ', '_'))}`);
+        if (!response.ok) throw new Error('place photo unavailable');
+        const result = await response.json();
+        const image = result.originalimage?.source || result.thumbnail?.source;
+        if (image) { photo.src = image; photo.alt = `${d.name} landmark`; }
+        card.dataset.loaded = '1';
+        card.dataset.loading = '0';
+      } catch {
+        card.dataset.loading = '0';
+        root.querySelector('[data-role="source"]').textContent = 'Live location · image unavailable';
+      }
     };
 
     const lift = (on) => {
@@ -968,10 +974,8 @@ const MumbaiGlobe = forwardRef(function MumbaiGlobe({
   const [ready, setReady] = useState(false);
   const [lod, setLod] = useState(lodFor(INTRO_ALTITUDE));
   const [selected, setSelected] = useState(null);
-  const [selectedRegion, setSelectedRegion] = useState(null);
   const [hoverZone, setHoverZone] = useState(null);
   const [autoOverlay, setAutoOverlay] = useState(false);
-  const [layers, setLayers] = useState({ boundaries: true, roads: true, labels: true, water: true });
 
   useEffect(() => {
     clickRef.current = onLandmarkClick;
@@ -1030,7 +1034,7 @@ const MumbaiGlobe = forwardRef(function MumbaiGlobe({
   const vLand = useMemo(() => virtualizePolygons(landFeatures), [landFeatures]);
   // Zones go through the same stereographic virtualisation as the land.
   const vZones = useMemo(() => virtualizePolygons(zones.features), [zones]);
-  const polyData = useMemo(() => (layers.boundaries ? [...vLand, ...vZones] : vLand), [vLand, vZones, layers.boundaries]);
+  const polyData = useMemo(() => [...vLand, ...vZones], [vLand, vZones]);
   zoneRingsRef.current = useMemo(() => {
     const m = new Map();
     vZones.forEach((f) => {
@@ -1080,18 +1084,18 @@ const MumbaiGlobe = forwardRef(function MumbaiGlobe({
       });
     return [
       ...pins,
-      ...(layers.labels ? make([...placeLabels, ...hood.labels], 'place', (l) => (l.major ? 1 : 2), (l) => (l.major ? 1.4 : MINOR_LABEL_MAX_ALT)) : []),
-      ...(layers.roads && layers.labels ? make(roadLabels, 'road', () => 4, () => 0.72) : []),
+      ...make([...placeLabels, ...hood.labels], 'place', (l) => (l.major ? 1 : 2), (l) => (l.major ? 1.4 : MINOR_LABEL_MAX_ALT)),
+      ...make(roadLabels, 'road', () => 4, () => 0.72),
       // Atlas region names (replace the old centroid labels)
       ...zones.atlas.map((z) => {
         const v = projectToGlobe(z.lng, z.lat);
         return { ...z, id: `region-${z.zid}`, kind: 'region', vlat: v.lat, vlng: v.lng, priority: 0 };
       }),
-      ...(layers.water && layers.labels ? make(waterLabels, 'water', () => 3, (l) => l.maxAlt ?? 0.9) : []),
+      ...make(waterLabels, 'water', () => 3, (l) => l.maxAlt ?? 0.9),
     ];
-  }, [pins, placeLabels, hood.labels, zones, roadLabels, waterLabels, layers.labels, layers.roads, layers.water]);
+  }, [pins, placeLabels, hood.labels, zones, roadLabels, waterLabels]);
 
-  const paths = useMemo(() => (layers.roads ? vRoads.filter((r) => layerVisible(r.kind, lod)) : []), [vRoads, lod, layers.roads]);
+  const paths = useMemo(() => vRoads.filter((r) => layerVisible(r.kind, lod)), [vRoads, lod]);
   const pathStroke = useCallback((d) => ROAD_STYLES[d.kind].km * DEG_PER_KM * strokeScale(lod), [lod]);
 
   /* ---- Label collision pass ------------------------------------------------ */
@@ -1341,13 +1345,6 @@ const MumbaiGlobe = forwardRef(function MumbaiGlobe({
         setSelected(d);
         flyTo({ lat: d.vlat, lng: d.vlng, altitude: FOCUS_ALTITUDE });
       },
-      focusGeography: (feature) => {
-        if (!feature?.lat || !feature?.lng) return;
-        setSelected(null);
-        setSelectedRegion({ ...feature, __geo: true });
-        const point = projectToGlobe(feature.lng, feature.lat);
-        flyTo({ lat: point.lat, lng: point.lng, altitude: FOCUS_ALTITUDE });
-      },
       recenter,
     }),
     [pins, flyTo, recenter],
@@ -1493,10 +1490,6 @@ const MumbaiGlobe = forwardRef(function MumbaiGlobe({
           polygonStrokeColor={polyStroke}
           polygonAltitude={polyAlt}
           onPolygonHover={handlePolygonHover}
-          onPolygonClick={(feature) => {
-            const properties = feature?.properties;
-            if (properties?.__zone) setSelectedRegion(properties);
-          }}
           polygonCapCurvatureResolution={3}
           polygonsTransitionDuration={0}
           /* Roads, minor streets and boundaries */
@@ -1527,20 +1520,6 @@ const MumbaiGlobe = forwardRef(function MumbaiGlobe({
       {!ready && (
         <div className="absolute inset-0 flex items-center justify-center bg-[#cfeaf3] text-xs tracking-[0.2em] text-slate-500">
           LOADING MAP…
-        </div>
-      )}
-
-      {selectedRegion && !selected && (
-        <div className="absolute bottom-16 left-4 max-w-[19rem] rounded-2xl border border-slate-300/50 bg-white/85 p-4 shadow-[0_8px_28px_rgba(51,65,85,0.14)] backdrop-blur-xl">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">{selectedRegion.__geo ? selectedRegion.type : 'Mapped locality'}</div>
-              <div className="mt-1 text-sm font-semibold text-slate-900">{selectedRegion.name}</div>
-              {(selectedRegion.areas || selectedRegion.description) && <p className="mt-1 text-xs leading-relaxed text-slate-600">{selectedRegion.areas || selectedRegion.description}</p>}
-              <div className="mt-2 text-[10px] text-slate-400">{selectedRegion.__geo ? 'Geographic feature · coordinates preserved from the atlas dataset.' : 'Boundary coverage varies by available geographic data.'}</div>
-            </div>
-            <button type="button" aria-label="Close area information" onClick={() => setSelectedRegion(null)} className="text-slate-400 transition hover:text-slate-700">×</button>
-          </div>
         </div>
       )}
 
@@ -1588,20 +1567,6 @@ const MumbaiGlobe = forwardRef(function MumbaiGlobe({
           ))}
         </div>
       )}
-
-      <div className="absolute bottom-14 right-4 flex max-w-[15rem] flex-wrap justify-end gap-1.5 rounded-2xl border border-slate-300/50 bg-white/70 p-2 shadow-sm backdrop-blur-xl">
-        <span className="w-full px-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500">Atlas layers</span>
-        {[
-          ['boundaries', 'Areas'],
-          ['roads', 'Roads & rail'],
-          ['labels', 'Place names'],
-          ['water', 'Water'],
-        ].map(([key, label]) => (
-          <button key={key} type="button" aria-pressed={layers[key]} onClick={() => setLayers((current) => ({ ...current, [key]: !current[key] }))} className={`${btn} !px-2 !py-1 ${layers[key] ? 'border-slate-500 bg-slate-900 text-white hover:text-white' : ''}`}>
-            {label}
-          </button>
-        ))}
-      </div>
 
       <div className="absolute bottom-4 right-4 flex gap-2">
         <button type="button" aria-label="Zoom out" onClick={() => zoomBy(1.8)} className={btn}>

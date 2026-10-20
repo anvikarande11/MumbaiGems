@@ -1,26 +1,31 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import './destination-book.css';
-import { getFallbackImage, getPlaceImage } from '../utils/placeImages';
+
+const fallbackImage = 'https://images.unsplash.com/photo-1595658658481-d53d3f999875?auto=format&fit=crop&w=1400&q=85';
 
 function usePlaceImage(place) {
-  const [image, setImage] = useState(getFallbackImage());
+  const [image, setImage] = useState(null);
   useEffect(() => {
     let cancelled = false;
-    setImage(getFallbackImage());
-    getPlaceImage(place).then((nextImage) => {
-      if (!cancelled) setImage(nextImage);
-    });
+    setImage(null);
+    const title = encodeURIComponent(`${place.name} Mumbai`);
+    fetch(`https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${title}&gsrnamespace=6&gsrlimit=1&prop=imageinfo&iiprop=url|extmetadata&iiurlwidth=1200&format=json&origin=*`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (cancelled) return;
+        const page = data?.query?.pages ? Object.values(data.query.pages)[0] : null;
+        setImage(page?.imageinfo?.[0]?.thumburl || page?.imageinfo?.[0]?.url || fallbackImage);
+      })
+      .catch(() => { if (!cancelled) setImage(fallbackImage); });
     return () => { cancelled = true; };
   }, [place]);
-  return image;
+  return image || fallbackImage;
 }
 
 export default function DestinationBook({ place, landmarks, onClose, onSelect }) {
   const closeRef = useRef(null);
   const [page, setPage] = useState(0);
   const [saved, setSaved] = useState(() => Boolean(place && JSON.parse(localStorage.getItem('mumbai-gems-saved') || '[]').includes(place.id)));
-  const [review, setReview] = useState({ rating: 5, text: '' });
-  const [submittedReview, setSubmittedReview] = useState(null);
   const image = usePlaceImage(place);
   const nearby = useMemo(() => landmarks.filter((item) => item.id !== place.id && item.category === place.category).slice(0, 3), [landmarks, place]);
 
@@ -47,7 +52,7 @@ export default function DestinationBook({ place, landmarks, onClose, onSelect })
           <div className="book-scroll">
             {page === 0 && <><p className="book-kicker">At a glance</p><div className="book-facts"><span><b>Neighbourhood</b>{place.area}</span><span><b>Atmosphere</b>{place.vibeTag || 'Local and layered'}</span><span><b>Budget</b>{place.priceRange || 'Check before visiting'}</span><span><b>Coordinates</b>{Number(place.lat).toFixed(3)}° N · {Number(place.lng).toFixed(3)}° E</span></div><a className="book-map book-map-primary" href={mapUrl} target="_blank" rel="noreferrer">Open exact place in Google Maps ↗</a><h3>Why this place matters</h3><p className="book-lead">{place.desc}</p><h3>What you will experience</h3><p>Come with curiosity: look closely at the architecture, listen to the neighbourhood, and give the place enough time to reveal its everyday rhythm.</p><div className="book-tip"><b>A thoughtful tip</b><span>{place.studentHack || 'Check current access and timings before travelling.'}</span></div></>}
             {page === 1 && <><p className="book-kicker">Plan your visit</p><h3>Make it work for your day</h3><p>Plan for daylight unless the destination is clearly suited to evenings. Opening hours, access rules and prices can change, so verify them before setting out.</p><div className="book-planner"><span><b>Suggested time</b>45–90 minutes</span><span><b>Visit style</b>{place.category === 'viewpoint' ? 'Walk, pause, photograph' : 'Explore, observe, learn'}</span><span><b>Getting there</b>Use the coordinates below for current directions</span></div><a className="book-map" href={mapUrl} target="_blank" rel="noreferrer">Open exact place in Google Maps ↗</a><h3>Before you go</h3><p>Be respectful in residential, religious and working spaces. Wear comfortable shoes and avoid photographing people without permission.</p></>}
-            {page === 2 && <><p className="book-kicker">Continue the walk</p><h3>Nearby discoveries</h3><p>Keep the same neighbourhood thread going with another place from this field guide.</p><div className="nearby-list">{nearby.map((item) => <button key={item.id} onClick={() => { setPage(0); onSelect(item); }}><span>{item.name}</span><small>{item.area} · {item.category}</small></button>)}</div><div className="book-review-section"><p className="book-kicker">Leave a field note</p><h3>How was your visit?</h3><div className="book-rating" role="radiogroup" aria-label="Rating"><span>Rating</span>{[1, 2, 3, 4, 5].map((value) => <button key={value} type="button" className={value <= review.rating ? 'is-rated' : ''} onClick={() => setReview((current) => ({ ...current, rating: value }))} aria-label={`${value} out of 5`} aria-pressed={value <= review.rating}>★</button>)}</div><textarea value={review.text} onChange={(event) => setReview((current) => ({ ...current, text: event.target.value }))} placeholder="Share one useful detail for the next traveller…" rows={3} maxLength={320} /><button type="button" className="book-submit-review" onClick={() => { if (review.text.trim()) { setSubmittedReview({ ...review, text: review.text.trim() }); setReview((current) => ({ ...current, text: '' })); } }}>Publish field note</button>{submittedReview && <p className="book-review-success">Your {submittedReview.rating}/5 field note is pinned to this place.</p>}</div></>}
+            {page === 2 && <><p className="book-kicker">Continue the walk</p><h3>Nearby discoveries</h3><p>Keep the same neighbourhood thread going with another place from this field guide.</p><div className="nearby-list">{nearby.map((item) => <button key={item.id} onClick={() => { setPage(0); onSelect(item); }}><span>{item.name}</span><small>{item.area} · {item.category}</small></button>)}</div></>}
           </div>
           <div className="book-pagination"><button onClick={() => setPage(Math.max(0, page - 1))} disabled={page === 0}>Previous</button><span>{String(page + 1).padStart(2, '0')} / 03</span><button onClick={() => setPage(Math.min(2, page + 1))} disabled={page === 2}>Next</button></div>
         </div>
