@@ -43,11 +43,11 @@ export default function DiscoveryOverlay({ discovery, landmarks = [], visitedIds
   const low = playing && game.timeLeft <= 10;
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-20">
+    <div className="pointer-events-none absolute inset-0 z-20 mg-overlay-controls">
       <style>{CSS}</style>
 
       {/* Top Left Controls & Journal Button */}
-      <div className="pointer-events-auto absolute left-4 top-4 flex items-center gap-2">
+      <div className="pointer-events-auto absolute left-4 top-4 flex items-center gap-2 mg-top-actions">
         {game.phase === 'off' && (
           <button type="button" onClick={startGame} className={`${primary} px-5 py-2.5 text-sm shadow-md`}>
             🎲 Spin &amp; Find
@@ -63,10 +63,10 @@ export default function DiscoveryOverlay({ discovery, landmarks = [], visitedIds
 </button>
       </div>
 
-      <div className="pointer-events-auto absolute bottom-5 left-1/2 -translate-x-1/2 rounded-full bg-white/85 px-4 py-2 text-xs font-medium text-slate-700 shadow-md backdrop-blur">{resultCount} places match your Mumbai</div>
+      <div className="pointer-events-auto absolute bottom-5 left-1/2 -translate-x-1/2 rounded-full bg-white/85 px-4 py-2 text-xs font-medium text-slate-700 shadow-md backdrop-blur mg-result-count">{resultCount} places match your Mumbai</div>
 
       {/* Destination search */}
-      <div className="pointer-events-auto absolute left-1/2 top-4 w-[min(25rem,calc(100%-2rem))] -translate-x-1/2">
+      <div className="pointer-events-auto absolute left-1/2 top-4 w-[min(25rem,calc(100%-2rem))] -translate-x-1/2 mg-search">
         <div className="flex items-center gap-2 rounded-full border border-white/20 bg-[#101b2d]/80 px-4 py-2 shadow-[0_12px_40px_rgba(0,0,0,.28)] backdrop-blur-xl">
           <span aria-hidden="true" className="text-sm text-cyan-200">⌕</span>
           <input
@@ -96,14 +96,14 @@ export default function DiscoveryOverlay({ discovery, landmarks = [], visitedIds
       </div>
 
       {/* Traveller profile */}
-      <div className="pointer-events-auto absolute right-4 top-4 flex items-center gap-2 rounded-full border border-white/60 bg-white/85 px-3 py-2 shadow-md backdrop-blur-xl">
+      <div className="pointer-events-auto absolute right-4 top-4 flex items-center gap-2 rounded-full border border-white/60 bg-white/85 px-3 py-2 shadow-md backdrop-blur-xl mg-profile">
         <span className="grid size-7 place-items-center rounded-full bg-slate-900 text-[11px] font-semibold text-white">{(profile?.name || 'T').slice(0, 1).toUpperCase()}</span>
         <span className="max-w-32 truncate text-xs font-semibold text-slate-800">{profile?.name || 'Traveller'}</span>
       </div>
 
       {/* Game HUD */}
       {playing && (
-        <div className={`${glass} absolute left-1/2 top-16 w-[min(28rem,calc(100%-2rem))] -translate-x-1/2 p-4`}>
+        <div className={`${glass} absolute left-1/2 top-16 w-[min(28rem,calc(100%-2rem))] -translate-x-1/2 p-4 mg-game-hud`}>
           <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-[0.12em] text-slate-500">
             <span>
               Round {game.round + 1}/{rounds}
@@ -138,7 +138,7 @@ export default function DiscoveryOverlay({ discovery, landmarks = [], visitedIds
       )}
 
       {result && (
-        <div className={`${glass} absolute left-1/2 top-16 w-[min(28rem,calc(100%-2rem))] -translate-x-1/2 p-4`}>
+        <div className={`${glass} absolute left-1/2 top-16 w-[min(28rem,calc(100%-2rem))] -translate-x-1/2 p-4 mg-game-hud`}>
           <div className={`text-[11px] font-medium uppercase tracking-[0.12em] ${game.outcome === 'found' ? 'text-emerald-700' : 'text-slate-500'}`}>
             {game.outcome === 'found' ? `Found it · +${game.gained} pts` : "Time's up"}
           </div>
