@@ -70,12 +70,12 @@ const INTRO_ALTITUDE = 1.2; // opening shot, whole city as a globe
 const MAX_PAN_DEG = 50; // soft wall: how far from the map centre the view may travel
 
 // Palette: pastel map, off-white land, slate linework
-const BACKGROUND = '#e8f4f8';
-const SEA = '#c4def0';
-const LAND = '#fafaf7';
-const LAND_SIDE = '#d5dde6';
-const COAST = '#94a3b8';
-const ATMOSPHERE = '#cfe5f5';
+const BACKGROUND = '#0a0f1d';
+const SEA = '#0e2032';
+const LAND = '#dce9df';
+const LAND_SIDE = '#9fb5b4';
+const COAST = '#6b8392';
+const ATMOSPHERE = '#4e8aaa';
 
 // Layer heights, fractions of globe radius. Each road class gets its own height so
 // crossing roads never z-fight.
@@ -770,7 +770,7 @@ const markerKind = (category) =>
 const MARKER_CSS = `
 .mg-node{position:absolute;left:-12px;top:-12px;width:24px;height:24px;color:var(--c);cursor:pointer;pointer-events:auto;outline:none}
 .mg-ring,.mg-body{position:absolute;inset:0;border-radius:9999px}
-.mg-body{display:flex;align-items:center;justify-content:center;background:#fff;
+.mg-body{display:flex;align-items:center;justify-content:center;background:rgba(248,250,247,.94);
   border:1px solid color-mix(in srgb,var(--c) 55%,#fff);
   box-shadow:0 0 0 3px color-mix(in srgb,var(--c) 12%,transparent),0 3px 10px color-mix(in srgb,var(--c) 28%,transparent);
   transform:scale(var(--s,1));transition:transform .18s cubic-bezier(.3,.7,.3,1),box-shadow .18s ease}
@@ -1391,7 +1391,7 @@ const MumbaiGlobe = forwardRef(function MumbaiGlobe({
   const selAccent = selected ? selected.color || selKind.color : null;
 
   return (
-    <div ref={containerRef} className={`relative isolate h-full min-h-[480px] w-full overflow-hidden bg-[#e8f4f8] ${blind ? 'mg-blind' : ''} ${overlayActive || autoOverlay ? 'mg-suspended' : ''} ${className}`}>
+    <div ref={containerRef} className={`relative isolate h-full min-h-[480px] w-full overflow-hidden bg-[#0a0f1d] ${blind ? 'mg-blind' : ''} ${overlayActive || autoOverlay ? 'mg-suspended' : ''} ${className}`}>
       <style>{MARKER_CSS}</style>
       {size.width > 0 && size.height > 0 && (
         <Globe

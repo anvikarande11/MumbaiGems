@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ROUNDS, ROUND_SECONDS, rankFor } from '../hooks/useDiscovery';
 import JournalModal from './JournalModal';
 
@@ -17,7 +17,21 @@ const CSS = `
 @media (prefers-reduced-motion:reduce){.mg-miss,.mg-toast{animation:none}}
 `;
 
-export default function DiscoveryOverlay({ discovery, landmarks = [], visitedIds }) {
+export default function DiscoveryOverlay({ discovery, landmarks = [], visitedIds, globeRef }) {
+  const [query, setQuery] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const matches = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    if (!term) return [];
+    return landmarks
+      .filter((place) => `${place.name} ${place.area ?? ''} ${place.category ?? ''}`.toLowerCase().includes(term))
+      .slice(0, 6);
+  }, [landmarks, query]);
+  const flyToDestination = (place) => {
+    setQuery(place.name);
+    setSearchOpen(false);
+    globeRef?.current?.focus(place.id);
+  };
   const { game, target, clue, hubs, unlockedCount, visitedCount, tier, toast, startGame, quitGame, nextRound } = discovery;
   const [open, setOpen] = useState(false);
   const [isJournalOpen, setIsJournalOpen] = useState(false);
@@ -47,6 +61,36 @@ export default function DiscoveryOverlay({ discovery, landmarks = [], visitedIds
 >
   <span>📖</span> Travel Journal
 </button>
+      </div>
+
+      {/* Destination search */}
+      <div className="pointer-events-auto absolute left-1/2 top-4 w-[min(25rem,calc(100%-2rem))] -translate-x-1/2">
+        <div className="flex items-center gap-2 rounded-full border border-white/20 bg-[#101b2d]/80 px-4 py-2 shadow-[0_12px_40px_rgba(0,0,0,.28)] backdrop-blur-xl">
+          <span aria-hidden="true" className="text-sm text-cyan-200">⌕</span>
+          <input
+            value={query}
+            onChange={(event) => { setQuery(event.target.value); setSearchOpen(true); }}
+            onFocus={() => setSearchOpen(true)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && matches[0]) flyToDestination(matches[0]);
+              if (event.key === 'Escape') setSearchOpen(false);
+            }}
+            aria-label="Search Mumbai destinations"
+            placeholder="Search a neighbourhood or gem"
+            className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-slate-400"
+          />
+          <span className="text-[10px] uppercase tracking-[.18em] text-slate-500">Atlas</span>
+        </div>
+        {searchOpen && matches.length > 0 && (
+          <div className="mt-2 overflow-hidden rounded-2xl border border-white/15 bg-[#101b2d]/95 p-1 shadow-2xl backdrop-blur-xl">
+            {matches.map((place) => (
+              <button key={place.id} type="button" onClick={() => flyToDestination(place)} className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition hover:bg-white/10">
+                <span className="min-w-0"><strong className="block truncate text-sm font-medium text-white">{place.name}</strong><span className="block truncate text-[11px] text-slate-400">{place.area} · {place.category}</span></span>
+                <span className="ml-3 text-xs text-cyan-200">Fly there</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Passport */}
