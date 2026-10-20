@@ -3,6 +3,7 @@ import DiscoveryOverlay from './components/DiscoveryOverlay';
 import AuthView from './components/AuthView';
 import IntroView from './components/IntroView';
 import MumbaiGlobe from './components/MumbaiGlobe';
+import DestinationBook from './components/DestinationBook';
 import gemsData, { MUMBAI_GEMS } from './data/gemsData';
 import { useDiscovery } from './hooks/useDiscovery';
 import neighborhoods from "./data/neighborhoods";
@@ -11,6 +12,7 @@ export default function App() {
   const globeRef = useRef(null);
   const [phase, setPhase] = useState('intro'); // intro -> auth -> leaving -> map
   const [profile, setProfile] = useState(null);
+  const [selectedPlace, setSelectedPlace] = useState(null);
   const discovery = useDiscovery(gemsData, globeRef);
 
   useEffect(() => {
@@ -28,7 +30,7 @@ export default function App() {
           active={phase === 'leaving' || phase === 'map'}
         blind={discovery.blind}
         visitedIds={discovery.visited}
-        onLandmarkClick={discovery.handlePick}
+        onLandmarkClick={(place) => { discovery.handlePick(place); setSelectedPlace(place); }}
       />
       {phase === 'map' && (
         <DiscoveryOverlay
@@ -37,6 +39,14 @@ export default function App() {
           visitedIds={discovery.visited}
           globeRef={globeRef}
           profile={profile}
+        />
+      )}
+      {selectedPlace && phase === 'map' && (
+        <DestinationBook
+          place={selectedPlace}
+          landmarks={MUMBAI_GEMS}
+          onClose={() => setSelectedPlace(null)}
+          onSelect={setSelectedPlace}
         />
       )}
       {phase === 'intro' && <IntroView onEnter={() => setPhase('auth')} />}
