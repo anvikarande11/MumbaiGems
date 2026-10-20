@@ -17,7 +17,7 @@ const CSS = `
 @media (prefers-reduced-motion:reduce){.mg-miss,.mg-toast{animation:none}}
 `;
 
-export default function DiscoveryOverlay({ discovery, landmarks = [], visitedIds, globeRef, profile, onOpenDiscovery, resultCount }) {
+export default function DiscoveryOverlay({ discovery, landmarks = [], personalizationActive, visitedIds, globeRef, profile, onOpenDiscovery, resultCount, onShowAll }) {
   const [query, setQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const matches = useMemo(() => {
@@ -46,24 +46,17 @@ export default function DiscoveryOverlay({ discovery, landmarks = [], visitedIds
     <div className="pointer-events-none absolute inset-0 z-20 mg-overlay-controls">
       <style>{CSS}</style>
 
-      {/* Top Left Controls & Journal Button */}
-      <div className="pointer-events-auto absolute left-4 top-4 flex items-center gap-2 mg-top-actions">
-        {game.phase === 'off' && (
-          <button type="button" onClick={startGame} className={`${primary} px-5 py-2.5 text-sm shadow-md`}>
-            🎲 Spin &amp; Find
-          </button>
-        )}
-        <button type="button" onClick={onOpenDiscovery} className="pointer-events-auto rounded-full border border-slate-300 bg-white/90 px-4 py-2 text-xs font-semibold text-slate-800 shadow-md backdrop-blur hover:bg-white">Personalise my globe</button>
-        <button
-  type="button"
-  onClick={() => setIsJournalOpen(true)}
-  className="pointer-events-auto rounded-full bg-white/90 px-4 py-2 text-xs font-semibold text-slate-800 shadow-md backdrop-blur hover:bg-white transition flex items-center gap-1.5"
->
-  <span>📖</span> Travel Journal
-</button>
+      {/* Controls sit below the dedicated search row on desktop. */}
+      <div className="pointer-events-auto absolute left-6 top-24 flex max-w-[min(20rem,calc(100%-3rem))] flex-wrap items-center gap-2 mg-top-actions">
+        {game.phase === 'off' && <button type="button" onClick={startGame} className={`${primary} px-5 py-2.5 text-sm shadow-md`}>Spin &amp; Find</button>}
+        <button type="button" onClick={onOpenDiscovery} className="rounded-full border border-slate-300 bg-white/90 px-4 py-2 text-xs font-semibold text-slate-800 shadow-md backdrop-blur hover:bg-white">Personalise my globe</button>
+        {personalizationActive && <button type="button" onClick={onShowAll} className="rounded-full border border-slate-300 bg-white/90 px-4 py-2 text-xs font-semibold text-slate-700 shadow-md backdrop-blur hover:bg-white">Show all landmarks</button>}
+      </div>
+      <div className="pointer-events-auto absolute right-6 top-24 mg-journal-action">
+        <button type="button" onClick={() => setIsJournalOpen(true)} className="flex items-center gap-1.5 rounded-full bg-white/90 px-4 py-2 text-xs font-semibold text-slate-800 shadow-md backdrop-blur transition hover:bg-white">Travel Journalism</button>
       </div>
 
-      <div className="pointer-events-auto absolute bottom-5 left-1/2 -translate-x-1/2 rounded-full bg-white/85 px-4 py-2 text-xs font-medium text-slate-700 shadow-md backdrop-blur mg-result-count">{resultCount} places match your Mumbai</div>
+      <div className="pointer-events-auto absolute bottom-5 left-1/2 -translate-x-1/2 rounded-full bg-white/85 px-4 py-2 text-xs font-medium text-slate-700 shadow-md backdrop-blur mg-result-count">{personalizationActive ? `Personalised discovery · ${resultCount} matching places` : `All Mumbai landmarks · ${resultCount} places`}</div>
 
       {/* Destination search */}
       <div className="pointer-events-auto absolute left-1/2 top-4 w-[min(25rem,calc(100%-2rem))] -translate-x-1/2 mg-search">
@@ -168,6 +161,12 @@ export default function DiscoveryOverlay({ discovery, landmarks = [], visitedIds
               Back to map
             </button>
           </div>
+        </div>
+      )}
+
+      {personalizationActive && resultCount === 0 && (
+        <div className="pointer-events-auto absolute left-1/2 top-40 w-[min(24rem,calc(100%-2rem))] -translate-x-1/2 rounded-2xl border border-white/60 bg-white/90 p-4 text-center text-xs text-slate-700 shadow-xl backdrop-blur mg-empty-state">
+          No landmarks match these preferences. Edit your globe preferences or show all landmarks to keep exploring.
         </div>
       )}
 
