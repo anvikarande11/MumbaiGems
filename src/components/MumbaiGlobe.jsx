@@ -1341,6 +1341,13 @@ const MumbaiGlobe = forwardRef(function MumbaiGlobe({
         setSelected(d);
         flyTo({ lat: d.vlat, lng: d.vlng, altitude: FOCUS_ALTITUDE });
       },
+      focusGeography: (feature) => {
+        if (!feature?.lat || !feature?.lng) return;
+        setSelected(null);
+        setSelectedRegion({ ...feature, __geo: true });
+        const point = projectToGlobe(feature.lng, feature.lat);
+        flyTo({ lat: point.lat, lng: point.lng, altitude: FOCUS_ALTITUDE });
+      },
       recenter,
     }),
     [pins, flyTo, recenter],
@@ -1527,10 +1534,10 @@ const MumbaiGlobe = forwardRef(function MumbaiGlobe({
         <div className="absolute bottom-16 left-4 max-w-[19rem] rounded-2xl border border-slate-300/50 bg-white/85 p-4 shadow-[0_8px_28px_rgba(51,65,85,0.14)] backdrop-blur-xl">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">Mapped locality</div>
+              <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">{selectedRegion.__geo ? selectedRegion.type : 'Mapped locality'}</div>
               <div className="mt-1 text-sm font-semibold text-slate-900">{selectedRegion.name}</div>
-              {selectedRegion.areas && <p className="mt-1 text-xs leading-relaxed text-slate-600">{selectedRegion.areas}</p>}
-              <div className="mt-2 text-[10px] text-slate-400">Boundary coverage varies by available geographic data.</div>
+              {(selectedRegion.areas || selectedRegion.description) && <p className="mt-1 text-xs leading-relaxed text-slate-600">{selectedRegion.areas || selectedRegion.description}</p>}
+              <div className="mt-2 text-[10px] text-slate-400">{selectedRegion.__geo ? 'Geographic feature · coordinates preserved from the atlas dataset.' : 'Boundary coverage varies by available geographic data.'}</div>
             </div>
             <button type="button" aria-label="Close area information" onClick={() => setSelectedRegion(null)} className="text-slate-400 transition hover:text-slate-700">×</button>
           </div>
