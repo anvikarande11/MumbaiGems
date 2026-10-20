@@ -17,7 +17,7 @@ const CSS = `
 @media (prefers-reduced-motion:reduce){.mg-miss,.mg-toast{animation:none}}
 `;
 
-export default function DiscoveryOverlay({ discovery, landmarks = [], visitedIds, globeRef, profile }) {
+export default function DiscoveryOverlay({ discovery, landmarks = [], visitedIds, globeRef, profile, onOpenDiscovery, resultCount }) {
   const [query, setQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const matches = useMemo(() => {
@@ -53,6 +53,7 @@ export default function DiscoveryOverlay({ discovery, landmarks = [], visitedIds
             🎲 Spin &amp; Find
           </button>
         )}
+        <button type="button" onClick={onOpenDiscovery} className="pointer-events-auto rounded-full border border-slate-300 bg-white/90 px-4 py-2 text-xs font-semibold text-slate-800 shadow-md backdrop-blur hover:bg-white">Personalise my globe</button>
         <button
   type="button"
   onClick={() => setIsJournalOpen(true)}
@@ -61,6 +62,8 @@ export default function DiscoveryOverlay({ discovery, landmarks = [], visitedIds
   <span>📖</span> Travel Journal
 </button>
       </div>
+
+      <div className="pointer-events-auto absolute bottom-5 left-1/2 -translate-x-1/2 rounded-full bg-white/85 px-4 py-2 text-xs font-medium text-slate-700 shadow-md backdrop-blur">{resultCount} places match your Mumbai</div>
 
       {/* Destination search */}
       <div className="pointer-events-auto absolute left-1/2 top-4 w-[min(25rem,calc(100%-2rem))] -translate-x-1/2">
