@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import DiscoveryOverlay from './components/DiscoveryOverlay';
+import AuthView from './components/AuthView';
 import IntroView from './components/IntroView';
 import MumbaiGlobe from './components/MumbaiGlobe';
 import gemsData, { MUMBAI_GEMS } from './data/gemsData';
@@ -8,7 +9,8 @@ import neighborhoods from "./data/neighborhoods";
 
 export default function App() {
   const globeRef = useRef(null);
-  const [phase, setPhase] = useState('intro'); // intro -> leaving -> map
+  const [phase, setPhase] = useState('intro'); // intro -> auth -> leaving -> map
+  const [profile, setProfile] = useState(null);
   const discovery = useDiscovery(gemsData, globeRef);
 
   useEffect(() => {
@@ -34,9 +36,12 @@ export default function App() {
           landmarks={MUMBAI_GEMS}
           visitedIds={discovery.visited}
           globeRef={globeRef}
+          profile={profile}
         />
       )}
-      {phase !== 'map' && <IntroView leaving={phase === 'leaving'} onEnter={() => setPhase('leaving')} />}
+      {phase === 'intro' && <IntroView onEnter={() => setPhase('auth')} />}
+      {phase === 'auth' && <AuthView onContinue={(nextProfile) => { setProfile(nextProfile); setPhase('leaving'); }} />}
+      {phase === 'leaving' && <IntroView leaving onEnter={() => undefined} />}
     </div>
   );
 }

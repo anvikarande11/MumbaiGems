@@ -17,7 +17,7 @@ const CSS = `
 @media (prefers-reduced-motion:reduce){.mg-miss,.mg-toast{animation:none}}
 `;
 
-export default function DiscoveryOverlay({ discovery, landmarks = [], visitedIds, globeRef }) {
+export default function DiscoveryOverlay({ discovery, landmarks = [], visitedIds, globeRef, profile }) {
   const [query, setQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const matches = useMemo(() => {
@@ -32,8 +32,7 @@ export default function DiscoveryOverlay({ discovery, landmarks = [], visitedIds
     setSearchOpen(false);
     globeRef?.current?.focus(place.id);
   };
-  const { game, target, clue, hubs, unlockedCount, visitedCount, tier, toast, startGame, quitGame, nextRound } = discovery;
-  const [open, setOpen] = useState(false);
+  const { game, target, clue, toast, startGame, quitGame, nextRound } = discovery;
   const [isJournalOpen, setIsJournalOpen] = useState(false);
   
 
@@ -93,49 +92,10 @@ export default function DiscoveryOverlay({ discovery, landmarks = [], visitedIds
         )}
       </div>
 
-      {/* Passport */}
-      <div className="absolute right-4 top-4 flex flex-col items-end gap-2">
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          aria-expanded={open}
-          className={`${glass} px-4 py-2 text-xs font-medium text-slate-700 transition hover:text-slate-900`}
-        >
-          Passport · {unlockedCount}/{hubs.length} hubs
-        </button>
-        {open && (
-          <div className={`${glass} w-64 p-4`}>
-            <div className="text-[10px] font-medium uppercase tracking-[0.14em] text-slate-500">Explorer Badge</div>
-            <div className="mt-0.5 text-sm font-semibold text-slate-900">{tier}</div>
-            <div className="text-xs text-slate-500">
-              {unlockedCount}/{hubs.length} hubs unlocked
-            </div>
-            <ul className="mt-3 space-y-2.5">
-              {hubs.map((h) => (
-                <li key={h.id}>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className={h.unlocked ? 'font-medium text-slate-900' : 'text-slate-500'}>
-                      {h.unlocked ? '✓ ' : ''}
-                      {h.name}
-                    </span>
-                    <span className="font-mono text-[10px] text-slate-400">
-                      {h.count}/{h.total}
-                    </span>
-                  </div>
-                  <div className="mt-1 h-1 overflow-hidden rounded-full bg-slate-200/80">
-                    <div
-                      className="h-full rounded-full bg-slate-700 transition-[width] duration-500"
-                      style={{ width: `${h.total ? (h.count / h.total) * 100 : 0}%` }}
-                    />
-                  </div>
-                </li>
-              ))}
-            </ul>
-            <div className="mt-3 border-t border-slate-300/50 pt-2 text-[11px] text-slate-500">
-              {visitedCount} {visitedCount === 1 ? 'gem' : 'gems'} discovered
-            </div>
-          </div>
-        )}
+      {/* Traveller profile */}
+      <div className="pointer-events-auto absolute right-4 top-4 flex items-center gap-2 rounded-full border border-white/60 bg-white/85 px-3 py-2 shadow-md backdrop-blur-xl">
+        <span className="grid size-7 place-items-center rounded-full bg-slate-900 text-[11px] font-semibold text-white">{(profile?.name || 'T').slice(0, 1).toUpperCase()}</span>
+        <span className="max-w-32 truncate text-xs font-semibold text-slate-800">{profile?.name || 'Traveller'}</span>
       </div>
 
       {/* Game HUD */}
@@ -147,7 +107,7 @@ export default function DiscoveryOverlay({ discovery, landmarks = [], visitedIds
             </span>
             <span className="flex items-center gap-3">
               <span>{game.score} pts</span>
-              <button type="button" onClick={quitGame} aria-label="Quit game" className="text-base leading-none text-slate-400 hover:text-slate-700">
+              <button type="button" onClick={quitGame} aria-label="Close game" title="Close game" className="text-base leading-none text-slate-400 hover:text-slate-700">
                 ×
               </button>
             </span>
