@@ -1408,8 +1408,24 @@ const MumbaiGlobe = forwardRef(function MumbaiGlobe({
 
   useEffect(() => {
     if (!ready || !active) return undefined;
-    const t = setTimeout(() => globeRef.current?.pointOfView(HOME_POV, 2400), 250);
-    return () => clearTimeout(t);
+    const globe = globeRef.current;
+    const controls = globe?.controls();
+    if (!globe || !controls) return undefined;
+
+    // After sign-in, reveal the full globe, let it make a gentle 1.5 second
+    // spin, then ease into Mumbai so the destination feels discovered.
+    globe.pointOfView({ lat: 0, lng: 0, altitude: INTRO_ALTITUDE }, 0);
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 7;
+    const spinTimer = setTimeout(() => {
+      controls.autoRotate = false;
+      globe.pointOfView(HOME_POV, 1350);
+    }, 1500);
+
+    return () => {
+      clearTimeout(spinTimer);
+      controls.autoRotate = false;
+    };
   }, [ready, active]);
 
   const htmlElement = useCallback(

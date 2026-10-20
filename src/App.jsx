@@ -15,7 +15,7 @@ export default function App() {
 
   useEffect(() => {
     if (phase !== 'leaving') return undefined;
-    const t = setTimeout(() => setPhase('map'), 850);
+    const t = setTimeout(() => setPhase('map'), 2900);
     return () => clearTimeout(t);
   }, [phase]);
 
@@ -25,7 +25,7 @@ export default function App() {
       <MumbaiGlobe
         ref={globeRef}
         landmarks={MUMBAI_GEMS}
-        active={phase !== 'intro'}
+          active={phase === 'leaving' || phase === 'map'}
         blind={discovery.blind}
         visitedIds={discovery.visited}
         onLandmarkClick={discovery.handlePick}
