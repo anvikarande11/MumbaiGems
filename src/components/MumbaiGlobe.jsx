@@ -88,7 +88,7 @@ const PIN_ALT = LAND_ALT + 0.002;
 // in between the scale eases smoothly.
 const DOT_ALT = 1.0;
 const FULL_ALT = 0.35;
-const DOT_SCALE = 0.3; // 24px * 0.3 = ~7px
+const DOT_SCALE = 0.22; // keep the opening view calm and uncluttered
 // Minor place labels are hidden above this altitude and fade in over MINOR_LABEL_FADE below it.
 const MINOR_LABEL_MAX_ALT = 0.55;
 const MINOR_LABEL_FADE = 0.12;
@@ -778,7 +778,7 @@ const MARKER_CSS = `
   box-shadow:0 0 0 3px color-mix(in srgb,var(--c) 12%,transparent),0 3px 10px color-mix(in srgb,var(--c) 28%,transparent);
   transform:scale(var(--s,1));transition:transform .18s cubic-bezier(.3,.7,.3,1),box-shadow .18s ease}
 .mg-ring{border:1.5px solid var(--c);opacity:0;transform:scale(var(--s,1));pointer-events:none}
-.mg-body>svg{opacity:calc(1 - var(--dot,0)*1.6);transition:opacity .18s ease}
+.mg-body>svg{color:#111827;stroke:#111827;opacity:calc(1 - var(--dot,0)*1.6);transition:opacity .18s ease}
 .mg-body::before{content:'';position:absolute;inset:0;z-index:-1;border-radius:inherit;background:var(--c);
   box-shadow:0 0 16px 5px color-mix(in srgb,var(--c) 55%,transparent);opacity:var(--dot,0);transition:opacity .18s ease}
 .mg-node:hover .mg-body,.mg-node:focus-visible .mg-body,.mg-node.is-active .mg-body{

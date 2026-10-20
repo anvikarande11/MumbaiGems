@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import WelcomeGate from './components/WelcomeGate';
+import TravellerProfile from './components/TravellerProfile';
 import DiscoveryOverlay from './components/DiscoveryOverlay';
 import IntroView from './components/IntroView';
 import MumbaiGlobe from './components/MumbaiGlobe';
@@ -8,7 +10,8 @@ import neighborhoods from "./data/neighborhoods";
 
 export default function App() {
   const globeRef = useRef(null);
-  const [phase, setPhase] = useState('intro'); // intro -> leaving -> map
+  const [phase, setPhase] = useState('auth'); // auth -> intro -> leaving -> map
+  const [profileOpen, setProfileOpen] = useState(false);
   const discovery = useDiscovery(gemsData, globeRef);
 
   useEffect(() => {
@@ -29,14 +32,19 @@ export default function App() {
         onLandmarkClick={discovery.handlePick}
       />
       {phase === 'map' && (
+        <>
+          <TravellerProfile onOpen={() => setProfileOpen((value) => !value)} />
+          {profileOpen && <div className="profile-popover"><strong>Your traveller profile</strong><span>Student explorer</span><span>Curious · budget-aware · local-first</span></div>}
         <DiscoveryOverlay
           discovery={discovery}
           landmarks={MUMBAI_GEMS}
           visitedIds={discovery.visited}
           globeRef={globeRef}
         />
+        </>
       )}
-      {phase !== 'map' && <IntroView leaving={phase === 'leaving'} onEnter={() => setPhase('leaving')} />}
+      {phase === 'intro' && <IntroView leaving={phase === 'leaving'} onEnter={() => setPhase('leaving')} />}
+      {phase === 'auth' && <WelcomeGate onContinue={() => setPhase('intro')} />}
     </div>
   );
 }
