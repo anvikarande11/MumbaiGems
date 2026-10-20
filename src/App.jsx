@@ -18,7 +18,7 @@ export default function App() {
   }, [phase]);
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-[#e8f4f8]">
+    <div className="relative h-screen w-screen overflow-hidden bg-[#cfeaf3]">
       {/* Mounted from the start so the map is ready when the intro fades. */}
       <MumbaiGlobe
         ref={globeRef}
