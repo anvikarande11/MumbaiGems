@@ -9,7 +9,12 @@ export default function WelcomeGate({ onContinue }) {
   const handleSubmit = (event) => {
     event.preventDefault();
     setSubmitted(true);
-    window.setTimeout(onContinue, 450);
+    const formData = new FormData(event.currentTarget);
+    window.setTimeout(() => onContinue({
+      name: formData.get('name') || 'Guest explorer',
+      email: formData.get('email'),
+      mode,
+    }), 450);
   };
 
   return (

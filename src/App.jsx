@@ -10,8 +10,9 @@ import neighborhoods from "./data/neighborhoods";
 
 export default function App() {
   const globeRef = useRef(null);
-  const [phase, setPhase] = useState('auth'); // auth -> intro -> leaving -> map
+  const [phase, setPhase] = useState('intro'); // intro -> auth -> leaving -> map
   const [profileOpen, setProfileOpen] = useState(false);
+  const [traveller, setTraveller] = useState({ name: 'Guest explorer', email: 'Not signed in', mode: 'login' });
   const discovery = useDiscovery(gemsData, globeRef);
 
   useEffect(() => {
@@ -33,9 +34,9 @@ export default function App() {
       />
       {phase === 'map' && (
         <>
-          <TravellerProfile onOpen={() => setProfileOpen((value) => !value)} />
-          {profileOpen && <div className="profile-popover"><strong>Your traveller profile</strong><span>Student explorer</span><span>Curious · budget-aware · local-first</span></div>}
-        <DiscoveryOverlay
+          <TravellerProfile traveller={traveller} onOpen={() => setProfileOpen((value) => !value)} />
+          {profileOpen && <div className="profile-popover"><strong>{traveller.name}</strong><span>{traveller.email}</span><span>Student explorer · Mumbai</span><span>Curious · budget-aware · local-first</span></div>}
+          <DiscoveryOverlay
           discovery={discovery}
           landmarks={MUMBAI_GEMS}
           visitedIds={discovery.visited}
@@ -43,8 +44,8 @@ export default function App() {
         />
         </>
       )}
-      {phase === 'intro' && <IntroView leaving={phase === 'leaving'} onEnter={() => setPhase('leaving')} />}
-      {phase === 'auth' && <WelcomeGate onContinue={() => setPhase('intro')} />}
+      {phase === 'intro' && <IntroView leaving={phase === 'leaving'} onEnter={() => setPhase('auth')} />}
+      {phase === 'auth' && <WelcomeGate onContinue={(details) => { setTraveller(details); setPhase('leaving'); }} />}
     </div>
   );
 }
