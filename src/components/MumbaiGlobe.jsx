@@ -70,12 +70,12 @@ const INTRO_ALTITUDE = 1.2; // opening shot, whole city as a globe
 const MAX_PAN_DEG = 50; // soft wall: how far from the map centre the view may travel
 
 // Palette: pastel map, off-white land, slate linework
-const BACKGROUND = '#0a0f1d';
-const SEA = '#0e2032';
-const LAND = '#dce9df';
-const LAND_SIDE = '#9fb5b4';
-const COAST = '#6b8392';
-const ATMOSPHERE = '#4e8aaa';
+const BACKGROUND = '#cfeaf3';
+const SEA = '#f8fbf7';
+const LAND = '#fffdf5';
+const LAND_SIDE = '#d7e5df';
+const COAST = '#9ebcc2';
+const ATMOSPHERE = '#a9d8e3';
 
 // Layer heights, fractions of globe radius. Each road class gets its own height so
 // crossing roads never z-fight.
@@ -729,27 +729,27 @@ const MARKER_KINDS = {
   },
   study: {
     label: 'Study',
-    color: '#2f5d8a',
+    color: '#5a91a4',
     icon: icon('<path d="M12 7v14"/><path d="M3 4h6a3 3 0 0 1 3 3 3 3 0 0 1 3-3h6v14h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3H3z"/>'),
   },
   food: {
     label: 'Eats',
-    color: '#c2571a',
+    color: '#d78b63',
     icon: icon('<path d="M4 7.5Q12 3.5 20 7.5L12 21z"/><circle cx="10.5" cy="10.5" r=".9"/><circle cx="14" cy="11.5" r=".9"/><circle cx="12" cy="15.5" r=".9"/>'),
   },
   play: {
     label: 'Hangout',
-    color: '#6d4aa8',
+    color: '#8f83b8',
     icon: icon('<rect x="2" y="7" width="20" height="11" rx="5.5"/><path d="M7 10.5v4M5 12.5h4"/><circle cx="15.5" cy="11.5" r=".8"/><circle cx="17.5" cy="13.5" r=".8"/>'),
   },
   viewpoint: {
     label: 'Viewpoint',
-    color: '#2f7d6d',
+    color: '#4f9a8d',
     icon: icon('<circle cx="12" cy="12" r="10"/><path d="m16.2 7.8-1.8 5.4a2 2 0 0 1-1.2 1.2l-5.4 1.8 1.8-5.4a2 2 0 0 1 1.2-1.2z"/>'),
   },
   culture: {
     label: 'Culture',
-    color: '#a0752c',
+    color: '#bd9b56',
     icon: icon('<path d="M3 9.5 12 4l9 5.5z"/><path d="M6 12v6M10 12v6M14 12v6M18 12v6"/><path d="M3 20.5h18"/>'),
   },
 };
@@ -792,6 +792,12 @@ const MARKER_CSS = `
 .mg-node:hover .mg-tip,.mg-node:focus-visible .mg-tip,.mg-node.is-active .mg-tip{opacity:1;visibility:visible;transform:translate(-50%,0);transition-delay:0s}
 .mg-tip strong{overflow:hidden;text-overflow:ellipsis;font:600 12px/1.25 ui-sans-serif,system-ui,sans-serif;color:#1e293b}
 .mg-tip span{overflow:hidden;text-overflow:ellipsis;font:500 10px/1.3 ui-sans-serif,system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#64748b}
+.mg-card{position:absolute;left:50%;bottom:calc(100% + 42px);width:220px;overflow:hidden;pointer-events:none;border:1px solid rgba(255,255,255,.82);border-radius:16px;background:rgba(255,253,247,.96);box-shadow:0 16px 38px rgba(54,96,110,.22);opacity:0;visibility:hidden;transform:translate(-50%,8px);transition:opacity .2s ease,transform .2s ease,visibility 0s linear .2s;z-index:30}
+.mg-node:hover .mg-card,.mg-node:focus-visible .mg-card,.mg-node.is-active .mg-card{opacity:1;visibility:visible;transform:translate(-50%,0);transition-delay:0s}
+.mg-card img{display:block;width:100%;height:108px;object-fit:cover;background:#dceff2}
+.mg-card-copy{padding:10px 12px 12px}.mg-card-copy strong{display:block;font:700 14px/1.2 ui-sans-serif,system-ui,sans-serif;color:#203b45}.mg-card-copy span{display:block;margin-top:4px;font:500 11px/1.35 ui-sans-serif,system-ui,sans-serif;color:#58717a}.mg-card-copy small{display:block;margin-top:7px;font:500 9px/1.3 ui-sans-serif,system-ui,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#90a5a9}
+.mg-card[data-loading="1"] .mg-card-copy{padding-top:9px}.mg-card[data-loading="1"] img{opacity:.55}
+@media (max-width:700px){.mg-card{width:190px}.mg-card img{height:92px}}
 .mg-blind .mg-tip{display:none}
 .mg-node.is-dot{pointer-events:none}
 .mg-node.is-dot .mg-body{pointer-events:auto}
@@ -838,12 +844,32 @@ function buildElement(d, { onActivate }) {
         <span class="mg-ring"></span>
         <span class="mg-body">${kind.icon}</span>
         <div class="mg-tip"><strong data-role="name"></strong><span data-role="meta"></span></div>
+        <div class="mg-card" data-loading="1"><img data-role="photo" alt="" /><div class="mg-card-copy"><strong data-role="card-name"></strong><span data-role="location"></span><small data-role="source">Live from Wikimedia</small></div></div>
       </div>`;
     const target = root.firstElementChild;
     target.style.setProperty('--c', d.color || kind.color);
     target.setAttribute('aria-label', d.name);
     root.querySelector('[data-role="name"]').textContent = d.name;
     root.querySelector('[data-role="meta"]').textContent = [kind.label, d.area].filter(Boolean).join(' · ');
+    root.querySelector('[data-role="card-name"]').textContent = d.name;
+    root.querySelector('[data-role="location"]').textContent = `${d.area || 'Mumbai'}, Maharashtra, India`;
+    const card = root.querySelector('.mg-card');
+    const photo = root.querySelector('[data-role="photo"]');
+    const loadLivePhoto = async () => {
+      if (card.dataset.loaded === '1' || card.dataset.loading === '0') return;
+      try {
+        const response = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(d.name.replaceAll(' ', '_'))}`);
+        if (!response.ok) throw new Error('place photo unavailable');
+        const result = await response.json();
+        const image = result.originalimage?.source || result.thumbnail?.source;
+        if (image) { photo.src = image; photo.alt = `${d.name} landmark`; }
+        card.dataset.loaded = '1';
+        card.dataset.loading = '0';
+      } catch {
+        card.dataset.loading = '0';
+        root.querySelector('[data-role="source"]').textContent = 'Live location · image unavailable';
+      }
+    };
 
     const lift = (on) => {
       if (root.parentElement) root.parentElement.style.zIndex = on || target.classList.contains('is-active') ? '1000' : '';
@@ -858,8 +884,10 @@ function buildElement(d, { onActivate }) {
         onActivate(d);
       }
     });
-    target.addEventListener('mouseenter', () => lift(true));
+    target.addEventListener('mouseenter', () => { lift(true); loadLivePhoto(); });
+    target.addEventListener('focus', () => { lift(true); loadLivePhoto(); });
     target.addEventListener('mouseleave', () => lift(false));
+    target.addEventListener('blur', () => lift(false));
     return { root, target };
   }
 
@@ -1391,7 +1419,7 @@ const MumbaiGlobe = forwardRef(function MumbaiGlobe({
   const selAccent = selected ? selected.color || selKind.color : null;
 
   return (
-    <div ref={containerRef} className={`relative isolate h-full min-h-[480px] w-full overflow-hidden bg-[#0a0f1d] ${blind ? 'mg-blind' : ''} ${overlayActive || autoOverlay ? 'mg-suspended' : ''} ${className}`}>
+    <div ref={containerRef} className={`relative isolate h-full min-h-[480px] w-full overflow-hidden bg-[#cfeaf3] ${blind ? 'mg-blind' : ''} ${overlayActive || autoOverlay ? 'mg-suspended' : ''} ${className}`}>
       <style>{MARKER_CSS}</style>
       {size.width > 0 && size.height > 0 && (
         <Globe
@@ -1443,7 +1471,7 @@ const MumbaiGlobe = forwardRef(function MumbaiGlobe({
       </svg>
 
       {!ready && (
-        <div className="absolute inset-0 flex items-center justify-center bg-[#e8f4f8] text-xs tracking-[0.2em] text-slate-400">
+        <div className="absolute inset-0 flex items-center justify-center bg-[#cfeaf3] text-xs tracking-[0.2em] text-slate-500">
           LOADING MAP…
         </div>
       )}
