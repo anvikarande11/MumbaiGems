@@ -1,165 +1,58 @@
-import { useState, useEffect } from 'react';
-import { X, BookOpen, Sparkles, MapPin, CheckCircle2, Award } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import './JournalModal.css';
 
-export default function JournalModal({ isOpen, onClose, landmarks = [], visitedIds = new Set(), store }) {
-  const activeVisitedIds = visitedIds || store?.visitedSet || new Set();
-  
-  const [notes, setNotes] = useState(() => {
-    return localStorage.getItem('mumbai_explorer_journal_notes') || '';
-  });
-  const [activeTab, setActiveTab] = useState('notes');
+const STORAGE_KEY = 'mumbai-gems-journal-v2';
+const chapters = [
+  ['cover', 'Between the pages'], ['belongs', 'This journal belongs to'], ['letter', 'Letter from the city'],
+  ['index', 'The city index'], ['heritage', 'Heritage hunter'], ['cafe', 'Café chronicles'], ['food', 'Bombay on a plate'],
+  ['train', 'Local train chronicles'], ['sea', 'Sea, sky & monsoon'], ['hunt', 'Hidden gems hunt'],
+  ['day', 'Design your own day'], ['postcard', 'Postcards to my future self'], ['sketch', 'My Mumbai, in lines'], ['final', 'Until we meet again'],
+];
+const starter = { name: '', date: '', intention: '', postcardTitle: '', postcardBody: '', day: { morning: '', afternoon: '', evening: '' }, checks: {}, saved: [], sketch: [], mode: 'read' };
 
-  // Close on ESC keypress
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') onClose();
-    };
-    if (isOpen) {
-      window.addEventListener('keydown', handleKeyDown);
-    }
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+function loadJournal() { try { return { ...starter, ...JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') }; } catch { return starter; } }
+function Field({ label, value, onChange, placeholder, multiline = false }) { const Tag = multiline ? 'textarea' : 'input'; return <label className="mj-field"><span>{label}</span><Tag value={value || ''} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} /></label>; }
+function Rule() { return <div className="mj-rule"><i /><span>✦</span><i /></div>; }
+function Stamp({ place, active }) { return <div className={`mj-stamp ${active ? 'is-active' : ''}`}><span>{active ? 'DISCOVERED' : 'FIELD NOTE'}</span><strong>{place}</strong><small>MUMBAI · 2026</small></div>; }
 
-  useEffect(() => {
-    localStorage.setItem('mumbai_explorer_journal_notes', notes);
-  }, [notes]);
+export default function JournalModal({ isOpen, onClose, landmarks = [], visitedIds = new Set() }) {
+  const [page, setPage] = useState(0);
+  const [journal, setJournal] = useState(loadJournal);
+  const [savedAt, setSavedAt] = useState('Saved locally');
+  const [fullscreen, setFullscreen] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
+  const canvasRef = useRef(null); const drawing = useRef(false);
+  const visited = useMemo(() => landmarks.filter((p) => visitedIds.has(p.id)), [landmarks, visitedIds]);
+  const current = chapters[page];
 
+  useEffect(() => { if (!isOpen) return; const onKey = (e) => { if (e.key === 'Escape') onClose(); if (journal.mode === 'read' && e.key === 'ArrowRight') setPage((p) => Math.min(chapters.length - 1, p + 1)); if (journal.mode === 'read' && e.key === 'ArrowLeft') setPage((p) => Math.max(0, p - 1)); }; window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey); }, [isOpen, onClose, journal.mode]);
+  useEffect(() => { if (!isOpen) return; const t = setTimeout(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(journal)); setSavedAt('Saved locally'); }, 350); return () => clearTimeout(t); }, [journal, isOpen]);
   if (!isOpen) return null;
-
-  const totalGems = landmarks.length;
-  const discoveredCount = landmarks.filter(l => activeVisitedIds.has(l.id)).length;
-
-  return (
-    <div 
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-md p-4 animate-fadeIn"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div className="relative w-full max-w-3xl overflow-hidden rounded-3xl border border-slate-300/60 bg-[#fdfbf7] shadow-2xl flex flex-col max-h-[85vh]">
-        
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-200/80 px-6 py-4 bg-[#f8f5ee]">
-          <div className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-white shadow-md">
-              📖
-            </span>
-            <div>
-              <h2 className="text-base font-bold text-slate-900">Mumbai 3D Traveler's Journal</h2>
-              <p className="text-xs text-slate-500">Log reflections, track discovered gems, and collect passport stamps.</p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full p-2 text-slate-400 hover:bg-slate-200/60 hover:text-slate-700 transition"
-            aria-label="Close Journal"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        {/* Navigation Tabs */}
-        <div className="flex border-b border-slate-200/80 bg-[#f4efea] px-6 gap-2 pt-2">
-          <button
-            type="button"
-            onClick={() => setActiveTab('notes')}
-            className={`px-4 py-2 text-xs font-semibold rounded-t-xl transition ${
-              activeTab === 'notes'
-                ? 'bg-[#fdfbf7] text-slate-900 border-t border-x border-slate-200/80 shadow-sm'
-                : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            ✏️ Field Notes & Itinerary
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('visited')}
-            className={`px-4 py-2 text-xs font-semibold rounded-t-xl transition ${
-              activeTab === 'visited'
-                ? 'bg-[#fdfbf7] text-slate-900 border-t border-x border-slate-200/80 shadow-sm'
-                : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            🎯 Discovered Gems ({discoveredCount}/{totalGems})
-          </button>
-        </div>
-
-        {/* Content Body */}
-        <div className="p-6 overflow-y-auto flex-1 bg-gradient-to-b from-[#fdfbf7] to-[#f9f6ef]">
-          {activeTab === 'notes' && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-600">
-                  Personal Travel Reflections &amp; Plan
-                </label>
-                <span className="text-[10px] font-mono text-emerald-600 font-medium">✓ Auto-saved to LocalStorage</span>
-              </div>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Write your Mumbai journey thoughts, cafe wishlist, sunset viewpoints, or meeting schedules here..."
-                className="w-full h-64 p-4 rounded-2xl border border-slate-300/60 bg-white/80 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 resize-none shadow-inner leading-relaxed"
-              />
-            </div>
-          )}
-
-          {activeTab === 'visited' && (
-            <div className="space-y-3">
-              <div className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">
-                Your Local Discovery Checklist
-              </div>
-              {landmarks.length === 0 ? (
-                <p className="text-xs text-slate-400 italic">No landmarks loaded yet.</p>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-                  {landmarks.map((landmark) => {
-                    const isVisited = activeVisitedIds.has(landmark.id);
-                    return (
-                      <div
-                        key={landmark.id}
-                        className={`flex items-center justify-between p-3 rounded-xl border transition ${
-                          isVisited
-                            ? 'border-emerald-200 bg-emerald-50/50 text-slate-900'
-                            : 'border-slate-200 bg-white/60 text-slate-500'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <span className={`text-base ${isVisited ? 'text-emerald-600' : 'text-slate-300'}`}>
-                            {isVisited ? '✓' : '○'}
-                          </span>
-                          <div className="min-w-0">
-                            <p className="text-xs font-semibold truncate text-slate-800">{landmark.name}</p>
-                            <p className="text-[10px] text-slate-400 truncate">{landmark.area || 'Mumbai'}</p>
-                          </div>
-                        </div>
-                        <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
-                          isVisited ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
-                        }`}>
-                          {isVisited ? 'Discovered' : 'Locked'}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-between border-t border-slate-200/80 px-6 py-3 bg-[#f8f5ee]">
-          <span className="text-xs text-slate-500 font-medium">Mumbai Explorer 3D Journal</span>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full bg-slate-900 px-5 py-2 text-xs font-semibold text-white shadow-md hover:bg-slate-800 transition"
-          >
-            Close Journal
-          </button>
-        </div>
-
-      </div>
-    </div>
-  );
+  const update = (key, value) => setJournal((j) => ({ ...j, [key]: value }));
+  const toggle = (key) => update('checks', { ...journal.checks, [key]: !journal.checks[key] });
+  const addSaved = (place) => update('saved', journal.saved.includes(place.id) ? journal.saved.filter((id) => id !== place.id) : [...journal.saved, place.id]);
+  const draw = (e) => { if (!drawing.current || !canvasRef.current) return; const r = canvasRef.current.getBoundingClientRect(); const point = { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height }; update('sketch', [...journal.sketch, point]); const ctx = canvasRef.current.getContext('2d'); ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.strokeStyle = '#367f79'; const last = journal.sketch.at(-1); if (last) { ctx.beginPath(); ctx.moveTo(last.x * r.width, last.y * r.height); ctx.lineTo(e.clientX - r.left, e.clientY - r.top); ctx.stroke(); } };
+  const startDraw = (e) => { drawing.current = true; draw(e); }; const stopDraw = () => { drawing.current = false; };
+  const clearSketch = () => { if (!confirmClear) { setConfirmClear(true); return; } update('sketch', []); setConfirmClear(false); const c = canvasRef.current; c?.getContext('2d').clearRect(0, 0, c.width, c.height); };
+  const pageContent = () => {
+    switch (current[0]) {
+      case 'cover': return <section className="mj-cover"><div className="mj-cover-mark">M</div><p className="mj-kicker">A traveler&apos;s field journal</p><h1>Mumbai,<br /><em>between the pages</em></h1><div className="mj-skyline" aria-hidden="true">⌁⌁⌁ ◇ ▥ ▥ ◫ ▥ ◇ ⌁⌁⌁</div><p className="mj-cover-note">Notes, places and small discoveries<br />from the city by the sea.</p><div className="mj-cover-foot">VOL. 01 <span>•</span> THE BOMBAY NOTEBOOK</div></section>;
+      case 'belongs': return <><Header eyebrow="01 / First page" title="This journal belongs to" /><div className="mj-writing"><Field label="Name" value={journal.name} onChange={(v) => update('name', v)} placeholder="Write your name here" /><Field label="Journey began" value={journal.date} onChange={(v) => update('date', v)} placeholder="DD / MM / YYYY" /><Field label="I came to Mumbai to…" value={journal.intention} onChange={(v) => update('intention', v)} placeholder="follow a sound, a smell, a story…" multiline /></div><Rule /><p className="mj-hand">Leave room for the unexpected.</p></>;
+      case 'letter': return <><Header eyebrow="02 / A note from the coast" title="Letter from the city" /><p className="mj-prose">Mumbai does not arrive quietly. It rolls in with the first local train, with salt on the morning air and rain finding every old window. Its buildings keep their stories in peeling paint; its lanes turn a corner and become a kitchen, a workshop, a cricket pitch.</p><p className="mj-prose">Stay long enough and the city gives you a rhythm: a cutting chai between two plans, a late walk beside the sea, the warm rush of a station at dusk. This is not a checklist. It is an invitation to pay attention.</p><Rule /><p className="mj-caption">Read slowly. The city is better that way.</p></>;
+      case 'index': return <><Header eyebrow="03 / Neighbourhoods" title="The city index" /><div className="mj-index">{[...new Set(landmarks.map((p) => p.area).filter(Boolean))].slice(0, 12).map((area) => <button key={area} type="button" onClick={() => { const found = landmarks.find((p) => p.area === area); if (found) addSaved(found); }} className="mj-index-row"><span>{area}</span><small>{landmarks.filter((p) => p.area === area).length} places <b>＋</b></small></button>)}</div><p className="mj-caption">Tap a neighbourhood to keep it in your notebook.</p></>;
+      case 'heritage': return <><Header eyebrow="04 / Observe closely" title="Heritage hunter" /><p className="mj-prose">Look up. Look down. Notice the brackets, balconies, tiled signs and the way a city repairs itself.</p><div className="mj-checks">{landmarks.filter((p) => /culture/i.test(p.category)).slice(0, 6).map((p) => <label key={p.id}><input type="checkbox" checked={!!journal.checks[p.id]} onChange={() => toggle(p.id)} /><span>{p.name}</span><small>{p.area}</small></label>)}</div></>;
+      case 'cafe': return <><Header eyebrow="05 / Pause here" title="Café chronicles" /><div className="mj-card-grid">{landmarks.filter((p) => /cafe|study|budget/i.test(p.category)).slice(0, 4).map((p) => <article className="mj-place" key={p.id}><div><small>{p.area}</small><h3>{p.name}</h3><p>{p.desc}</p></div><button type="button" onClick={() => addSaved(p)}>{journal.saved.includes(p.id) ? 'Saved' : 'Save to day'}</button></article>)}</div></>;
+      case 'food': return <><Header eyebrow="06 / Eat with your hands" title="Bombay on a plate" /><div className="mj-food-grid">{['Vada pav', 'Pav bhaji', 'Bhel puri', 'Bombay sandwich', 'Cutting chai', 'Local bakery'].map((food) => <label key={food}><input type="checkbox" checked={!!journal.checks[food]} onChange={() => toggle(food)} /><span>{food}</span></label>)}</div><Rule /><p className="mj-prose">Taste is a map too. Note the stall, the hour, the conversation.</p></>;
+      case 'train': return <><Header eyebrow="07 / Move through" title="Local train chronicles" /><p className="mj-prose">The railway is the city&apos;s great shared sentence. Record the small journeys, never treating these notes as live railway information.</p><div className="mj-ticket"><span>WESTERN / CENTRAL</span><strong>FROM __________ TO __________</strong><small>DATE __________  TIME __________</small></div><Field label="What I remember" value={journal.intention} onChange={(v) => update('intention', v)} placeholder="A window, a platform, a kindness…" multiline /></>;
+      case 'sea': return <><Header eyebrow="08 / Weather notes" title="Sea, sky & monsoon" /><div className="mj-weather"><button type="button" onClick={() => update('intention', 'Rain')} className="active">RAIN</button><button type="button" onClick={() => update('intention', 'Clouds')}>CLOUDS</button><button type="button" onClick={() => update('intention', 'Clear')}>CLEAR</button></div><Field label="Today the sea looked like…" value={journal.intention} onChange={(v) => update('intention', v)} placeholder="Silver, restless, impossibly blue…" multiline /><div className="mj-wave">〰〰〰〰〰〰〰〰〰</div></>;
+      case 'hunt': return <><Header eyebrow="09 / Collect the city" title="The hidden gems hunt" /><div className="mj-progress"><span style={{ width: `${landmarks.length ? (visited.length / landmarks.length) * 100 : 0}%` }} /></div><p className="mj-caption">{visited.length} of {landmarks.length} atlas discoveries collected</p><div className="mj-stamps">{(visited.length ? visited : landmarks.slice(0, 6)).slice(0, 6).map((p) => <Stamp key={p.id} place={p.name} active={visitedIds.has(p.id)} />)}</div></>;
+      case 'day': return <><Header eyebrow="10 / Make a day" title="Design your own day" /><div className="mj-day">{['morning', 'afternoon', 'evening'].map((slot) => <Field key={slot} label={slot} value={journal.day[slot]} onChange={(v) => update('day', { ...journal.day, [slot]: v })} placeholder="Add a place or a feeling…" />)}</div><p className="mj-caption">Saved destinations: {journal.saved.length}</p></>;
+      case 'postcard': return <><Header eyebrow="11 / Write forward" title="Postcards to my future self" /><Field label="Postcard title" value={journal.postcardTitle} onChange={(v) => update('postcardTitle', v)} placeholder="Wish you were here" /><Field label="Dear future me…" value={journal.postcardBody} onChange={(v) => update('postcardBody', v)} placeholder="Write a letter in the margins of this city." multiline /></>;
+      case 'sketch': return <><Header eyebrow="12 / Draw the day" title="My Mumbai, in lines" /><div className="mj-canvas-wrap"><canvas ref={canvasRef} width="900" height="360" onPointerDown={startDraw} onPointerMove={draw} onPointerUp={stopDraw} onPointerLeave={stopDraw} /><span>Draw here — use a mouse, stylus or touch.</span></div><div className="mj-sketch-tools"><button type="button" onClick={clearSketch}>{confirmClear ? 'Confirm clear' : 'Clear lines'}</button><span>{journal.sketch.length ? 'Ink saved locally' : 'A blank page waits'}</span></div></>;
+      case 'final': return <><Header eyebrow="13 / Keep this close" title="Until we meet again" /><div className="mj-final"><strong>{visited.length}</strong><span>atlas places discovered</span><strong>{Object.values(journal.checks).filter(Boolean).length}</strong><span>small promises kept</span><strong>{journal.saved.length}</strong><span>places saved for later</span></div><Rule /><p className="mj-prose">The best souvenirs are not things. They are the details you learned to notice.</p></>;
+      default: return null;
+    }
+  };
+  return <div className={`mj-backdrop ${fullscreen ? 'mj-fullscreen' : ''}`} role="dialog" aria-modal="true" aria-label="Mumbai travel journal"><div className="mj-shell"><aside className="mj-rail"><button className="mj-close" onClick={onClose} aria-label="Close journal">×</button><div className="mj-rail-title">MUMBAI<br /><em>field notes</em></div><div className="mj-chapters">{chapters.map(([id, name], i) => <button key={id} className={i === page ? 'active' : ''} onClick={() => setPage(i)}><span>{String(i).padStart(2, '0')}</span>{name}</button>)}</div><div className="mj-rail-bottom"><span>{savedAt}</span><button onClick={() => setFullscreen((v) => !v)}>{fullscreen ? 'Exit focus' : 'Focus mode'}</button></div></aside><main className="mj-book"><div className="mj-page mj-left-page">{page > 0 && <><span className="mj-folio">MUMBAI FIELD NOTES · {String(page).padStart(2, '0')}</span><div className="mj-left-art">{current[0] === 'cover' ? '' : '✦'}</div><p className="mj-margin">The city keeps moving.<br />Make a note of what stays.</p></>}</div><div className="mj-gutter" /><div className="mj-page mj-right-page"><div className="mj-page-content">{pageContent()}</div><span className="mj-folio right">{page === 0 ? '01' : String(page).padStart(2, '0')}</span></div><nav className="mj-controls"><button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}>← Previous</button><span>{page + 1} / {chapters.length}</span><button onClick={() => setPage((p) => Math.min(chapters.length - 1, p + 1))} disabled={page === chapters.length - 1}>Next →</button></nav><div className="mj-modes"><span>MODE</span>{['read', 'write', 'sketch'].map((mode) => <button key={mode} className={journal.mode === mode ? 'active' : ''} onClick={() => update('mode', mode)}>{mode}</button>)}</div></main></div></div>;
 }
+function Header({ eyebrow, title }) { return <header className="mj-header"><p>{eyebrow}</p><h2>{title}</h2></header>; }

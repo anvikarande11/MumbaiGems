@@ -33,6 +33,7 @@ export default function App() {
           discovery={discovery}
           landmarks={MUMBAI_GEMS}
           visitedIds={discovery.visited}
+          globeRef={globeRef}
         />
       )}
       {phase !== 'map' && <IntroView leaving={phase === 'leaving'} onEnter={() => setPhase('leaving')} />}
