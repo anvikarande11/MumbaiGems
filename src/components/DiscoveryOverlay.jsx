@@ -17,7 +17,7 @@ const CSS = `
 @media (prefers-reduced-motion:reduce){.mg-miss,.mg-toast{animation:none}}
 `;
 
-export default function DiscoveryOverlay({ discovery, landmarks = [], personalizationActive, visitedIds, globeRef, profile, onOpenDiscovery, resultCount, onShowAll, layerVisibility = {}, onLayerVisibilityChange }) {
+export default function DiscoveryOverlay({ discovery, landmarks = [], personalizationActive, visitedIds, globeRef, profile, onOpenDiscovery, resultCount, onShowAll }) {
   const [query, setQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const matches = useMemo(() => {
@@ -51,9 +51,6 @@ export default function DiscoveryOverlay({ discovery, landmarks = [], personaliz
         {game.phase === 'off' && <button type="button" onClick={startGame} className={`${primary} px-5 py-2.5 text-sm shadow-md`}>Spin &amp; Find</button>}
         <button type="button" onClick={onOpenDiscovery} className="rounded-full border border-slate-300 bg-white/90 px-4 py-2 text-xs font-semibold text-slate-800 shadow-md backdrop-blur hover:bg-white">Personalise my globe</button>
         {personalizationActive && <button type="button" onClick={onShowAll} className="rounded-full border border-slate-300 bg-white/90 px-4 py-2 text-xs font-semibold text-slate-700 shadow-md backdrop-blur hover:bg-white">Show all landmarks</button>}
-      </div>
-      <div className="pointer-events-auto absolute left-1/2 top-24 hidden -translate-x-1/2 items-center gap-1 rounded-full border border-white/60 bg-white/80 p-1 shadow-md backdrop-blur md:flex" aria-label="Atlas layers">
-        {[['labels', 'Names'], ['neighborhoods', 'Boundaries'], ['roads', 'Roads'], ['water', 'Water']].map(([key, label]) => <button key={key} type="button" onClick={() => onLayerVisibilityChange?.(key)} aria-pressed={layerVisibility[key] !== false} className={`rounded-full px-3 py-1.5 text-[10px] font-semibold transition ${layerVisibility[key] !== false ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-white'}`}>{label}</button>)}
       </div>
       <div className="pointer-events-auto absolute right-6 top-24 mg-journal-action">
         <button type="button" onClick={() => setIsJournalOpen(true)} className="flex items-center gap-1.5 rounded-full bg-white/90 px-4 py-2 text-xs font-semibold text-slate-800 shadow-md backdrop-blur transition hover:bg-white">Travel Journalism</button>
