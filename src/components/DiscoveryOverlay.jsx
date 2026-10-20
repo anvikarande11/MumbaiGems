@@ -17,27 +17,19 @@ const CSS = `
 @media (prefers-reduced-motion:reduce){.mg-miss,.mg-toast{animation:none}}
 `;
 
-export default function DiscoveryOverlay({ discovery, landmarks = [], geographicFeatures = [], personalizationActive, visitedIds, globeRef, profile, onOpenDiscovery, resultCount, onShowAll }) {
+export default function DiscoveryOverlay({ discovery, landmarks = [], personalizationActive, visitedIds, globeRef, profile, onOpenDiscovery, resultCount, onShowAll }) {
   const [query, setQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const matches = useMemo(() => {
     const term = query.trim().toLowerCase();
     if (!term) return [];
-    const landmarkMatches = landmarks
+    return landmarks
       .filter((place) => `${place.name} ${place.area ?? ''} ${place.category ?? ''}`.toLowerCase().includes(term))
-      .map((place) => ({ ...place, resultType: 'landmark' }));
-    const geographicMatches = geographicFeatures
-      .filter((place) => `${place.name} ${place.type ?? ''}`.toLowerCase().includes(term))
-      .map((place) => ({ ...place, resultType: 'geographic' }));
-    return [...landmarkMatches, ...geographicMatches].slice(0, 8);
+      .slice(0, 6);
   }, [landmarks, query]);
   const flyToDestination = (place) => {
     setQuery(place.name);
     setSearchOpen(false);
-    if (place.resultType === 'geographic') {
-      globeRef?.current?.focusGeography?.(place);
-      return;
-    }
     globeRef?.current?.focus(place.id);
   };
   const { game, target, clue, toast, startGame, quitGame, nextRound } = discovery;
@@ -79,7 +71,7 @@ export default function DiscoveryOverlay({ discovery, landmarks = [], geographic
               if (event.key === 'Escape') setSearchOpen(false);
             }}
             aria-label="Search Mumbai destinations"
-            placeholder="Search a place, road, station or gem"
+            placeholder="Search a neighbourhood or gem"
             className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-slate-400"
           />
           <span className="text-[10px] uppercase tracking-[.18em] text-slate-500">Atlas</span>
@@ -88,7 +80,7 @@ export default function DiscoveryOverlay({ discovery, landmarks = [], geographic
           <div className="mt-2 overflow-hidden rounded-2xl border border-white/15 bg-[#101b2d]/95 p-1 shadow-2xl backdrop-blur-xl">
             {matches.map((place) => (
               <button key={place.id} type="button" onClick={() => flyToDestination(place)} className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition hover:bg-white/10">
-                <span className="min-w-0"><strong className="block truncate text-sm font-medium text-white">{place.name}</strong><span className="block truncate text-[11px] text-slate-400">{place.resultType === 'geographic' ? place.type : `${place.area} · ${place.category}`}</span></span>
+                <span className="min-w-0"><strong className="block truncate text-sm font-medium text-white">{place.name}</strong><span className="block truncate text-[11px] text-slate-400">{place.area} · {place.category}</span></span>
                 <span className="ml-3 text-xs text-cyan-200">Fly there</span>
               </button>
             ))}

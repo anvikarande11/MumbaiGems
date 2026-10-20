@@ -9,7 +9,6 @@ import DestinationBook from './components/DestinationBook';
 import { MUMBAI_GEMS } from './data/gemsData';
 import { useDiscovery } from './hooks/useDiscovery';
 import { NEIGHBORHOODS } from './data/neighborhoods';
-import { GEOGRAPHIC_SEARCH_INDEX, geographicLabelData, geographicWaterLabels } from './data/geographicFeatures';
 
 export default function App() {
   const globeRef = useRef(null);
@@ -37,15 +36,12 @@ export default function App() {
         blind={discovery.blind}
         visitedIds={discovery.visited}
         neighborhoods={NEIGHBORHOODS}
-        placeLabels={[...geographicLabelData, ...NEIGHBORHOODS.features.map((feature) => ({ ...feature.properties, lat: feature.properties.label?.[0], lng: feature.properties.label?.[1], major: true }))]}
-        waterLabels={geographicWaterLabels}
         onLandmarkClick={(place) => { discovery.handlePick(place); setSelectedPlace(place); }}
       />
       {phase === 'map' && (
         <DiscoveryOverlay
           discovery={discovery}
           landmarks={filtered}
-          geographicFeatures={GEOGRAPHIC_SEARCH_INDEX}
           personalizationActive={Boolean(preferences)}
           visitedIds={discovery.visited}
           globeRef={globeRef}
