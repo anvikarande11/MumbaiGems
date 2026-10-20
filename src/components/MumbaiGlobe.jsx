@@ -723,36 +723,43 @@ const MARKER_KINDS = {
   cafe: {
     label: 'Café',
     color: '#a9cfe3',
+    iconColor: '#8b4513',
     icon: icon('<path d="M6 2v2M10 2v2M14 2v2"/><path d="M16 8h1a4 4 0 0 1 0 8h-1"/><path d="M4 8h12v9a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4z"/>'),
   },
   pub: {
     label: 'Pub',
     color: '#c9b8e8',
+    iconColor: '#6d28d9',
     icon: icon('<path d="M5 4h14l-7 8z"/><path d="M12 12v9M8 21h8"/>'),
   },
   study: {
     label: 'Study',
     color: '#b8dce8',
+    iconColor: '#1d4ed8',
     icon: icon('<path d="M12 7v14"/><path d="M3 4h6a3 3 0 0 1 3 3 3 3 0 0 1 3-3h6v14h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3H3z"/>'),
   },
   food: {
     label: 'Eats',
     color: '#f3d8a6',
+    iconColor: '#c2410c',
     icon: icon('<path d="M4 7.5Q12 3.5 20 7.5L12 21z"/><circle cx="10.5" cy="10.5" r=".9"/><circle cx="14" cy="11.5" r=".9"/><circle cx="12" cy="15.5" r=".9"/>'),
   },
   play: {
     label: 'Hangout',
     color: '#c8dfb8',
+    iconColor: '#15803d',
     icon: icon('<rect x="2" y="7" width="20" height="11" rx="5.5"/><path d="M7 10.5v4M5 12.5h4"/><circle cx="15.5" cy="11.5" r=".8"/><circle cx="17.5" cy="13.5" r=".8"/>'),
   },
   viewpoint: {
     label: 'Viewpoint',
     color: '#b8dfc8',
+    iconColor: '#047857',
     icon: icon('<circle cx="12" cy="12" r="10"/><path d="m16.2 7.8-1.8 5.4a2 2 0 0 1-1.2 1.2l-5.4 1.8 1.8-5.4a2 2 0 0 1 1.2-1.2z"/>'),
   },
   culture: {
     label: 'Culture',
     color: '#f1e0ad',
+    iconColor: '#9a3412',
     icon: icon('<path d="M3 9.5 12 4l9 5.5z"/><path d="M6 12v6M10 12v6M14 12v6M18 12v6"/><path d="M3 20.5h18"/>'),
   },
 };
@@ -778,7 +785,7 @@ const MARKER_CSS = `
   box-shadow:0 0 0 3px color-mix(in srgb,var(--c) 12%,transparent),0 3px 10px color-mix(in srgb,var(--c) 28%,transparent);
   transform:scale(var(--s,1));transition:transform .18s cubic-bezier(.3,.7,.3,1),box-shadow .18s ease}
 .mg-ring{border:1.5px solid var(--c);opacity:0;transform:scale(var(--s,1));pointer-events:none}
-.mg-body>svg{color:#111827;stroke:#111827;opacity:calc(1 - var(--dot,0)*1.6);transition:opacity .18s ease}
+.mg-body>svg{color:var(--i,#111827);stroke:var(--i,#111827);opacity:calc(1 - var(--dot,0)*1.6);transition:opacity .18s ease}
 .mg-body::before{content:'';position:absolute;inset:0;z-index:-1;border-radius:inherit;background:var(--c);
   box-shadow:0 0 16px 5px color-mix(in srgb,var(--c) 55%,transparent);opacity:var(--dot,0);transition:opacity .18s ease}
 .mg-node:hover .mg-body,.mg-node:focus-visible .mg-body,.mg-node.is-active .mg-body{
@@ -853,8 +860,9 @@ function buildElement(d, { onActivate }) {
         <div class="mg-card" data-loading="1"><img data-role="photo" alt="" /><div class="mg-card-copy"><strong data-role="card-name"></strong><span data-role="location"></span><small data-role="source">Live from Wikimedia</small></div></div>
       </div>`;
     const target = root.firstElementChild;
-    target.style.setProperty('--c', d.color || kind.color);
-    target.setAttribute('aria-label', d.name);
+  target.style.setProperty('--c', d.color || kind.color);
+  target.style.setProperty('--i', kind.iconColor || '#111827');
+  target.setAttribute('aria-label', d.name);
     root.querySelector('[data-role="name"]').textContent = d.name;
     root.querySelector('[data-role="meta"]').textContent = [kind.label, d.area].filter(Boolean).join(' · ');
     root.querySelector('[data-role="card-name"]').textContent = d.name;
